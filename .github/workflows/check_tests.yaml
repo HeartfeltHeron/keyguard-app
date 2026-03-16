@@ -48,7 +48,7 @@ jobs:
           build-flavor: "PlayStore"
       - name: "Run integration tests"
         id: baseline-profiles
-        uses: reactivecircus/android-emulator-runner@b530d96654c385303d652368551fb075bc2f0b6b
+        uses: reactivecircus/android-emulator-runner@e89f39f1abbbd05b1113a29cf4db69e7540cae5a
         with:
           api-level: ${{ matrix.api-level }}
           arch: x86_64
