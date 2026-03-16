@@ -6,6 +6,7 @@ import com.artemchep.keyguard.common.service.crypto.CryptoGenerator
 import com.artemchep.keyguard.common.service.patch.ModelDiffUtil.DiffApplierByListValue
 import com.artemchep.keyguard.common.service.patch.ModelDiffUtil.DiffFinderNode
 import com.artemchep.keyguard.common.service.text.Base64Service
+import com.artemchep.keyguard.core.store.bitwarden.BitwardenCipher.Login.PasswordHistory
 import kotlin.time.Clock
 import kotlin.time.Instant
 import kotlinx.serialization.SerialName
@@ -61,6 +62,8 @@ data class BitwardenCipher(
     val card: Card? = null,
     val identity: Identity? = null,
     val sshKey: SshKey? = null,
+    // other
+    val passwordHistory: List<PasswordHistory> = login?.passwordHistory.orEmpty(),
 ) : BitwardenService.Has<BitwardenCipher> {
     companion object;
 
@@ -257,6 +260,7 @@ data class BitwardenCipher(
         val password: String? = null,
         val passwordStrength: PasswordStrength? = null,
         val passwordRevisionDate: Instant? = null,
+        @Deprecated("Should use the `BitwardenCipher.passwordHistory` instead.")
         val passwordHistory: List<PasswordHistory> = emptyList(),
         val uris: List<Uri>,
         val fido2Credentials: List<Fido2Credentials> = emptyList(),

@@ -94,7 +94,7 @@ fun CipherRequest.Companion.of(
             FieldApi.of(field)
         }
         .takeUnless { it.isEmpty() }
-    val passwordHistory = model.login?.passwordHistory.orEmpty()
+    val passwordHistory = model.passwordHistory
         .map { passwordHistory ->
             PasswordHistoryRequest.of(passwordHistory)
         }

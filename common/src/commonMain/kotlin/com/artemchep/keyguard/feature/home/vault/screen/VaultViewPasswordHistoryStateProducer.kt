@@ -99,7 +99,6 @@ fun vaultViewPasswordHistoryScreenState(
     val itemsRawFlow = secretFlow
         .map { secretOrNull ->
             secretOrNull
-                ?.login
                 ?.passwordHistory
                 .orEmpty()
         }

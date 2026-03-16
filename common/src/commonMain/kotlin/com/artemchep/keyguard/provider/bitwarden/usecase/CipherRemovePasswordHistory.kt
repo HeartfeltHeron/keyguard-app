@@ -1,11 +1,9 @@
 package com.artemchep.keyguard.provider.bitwarden.usecase
 
-import arrow.optics.dsl.notNull
 import com.artemchep.keyguard.common.io.IO
 import com.artemchep.keyguard.common.io.map
 import com.artemchep.keyguard.common.usecase.CipherRemovePasswordHistory
 import com.artemchep.keyguard.core.store.bitwarden.BitwardenCipher
-import com.artemchep.keyguard.core.store.bitwarden.login
 import com.artemchep.keyguard.core.store.bitwarden.passwordHistory
 import com.artemchep.keyguard.provider.bitwarden.usecase.util.ModifyCipherById
 import org.kodein.di.DirectDI
@@ -32,7 +30,7 @@ class CipherRemovePasswordHistoryImpl(
     ) { model ->
         var new = model
         new = new.copy(
-            data_ = BitwardenCipher.login.notNull.passwordHistory
+            data_ = BitwardenCipher.passwordHistory
                 .set(new.data_, emptyList()),
         )
         new

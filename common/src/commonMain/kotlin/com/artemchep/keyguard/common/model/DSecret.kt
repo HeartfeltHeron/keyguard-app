@@ -58,6 +58,7 @@ data class DSecret(
     val uris: List<Uri> = emptyList(),
     val fields: List<Field> = emptyList(),
     val attachments: List<Attachment> = emptyList(),
+    val passwordHistory: List<Login.PasswordHistory> = emptyList(),
     // types
     val type: Type,
     val login: Login? = null,
@@ -308,7 +309,6 @@ data class DSecret(
         val password: String? = null,
         val passwordStrength: PasswordStrength? = null,
         val passwordRevisionDate: Instant? = null,
-        val passwordHistory: List<PasswordHistory> = emptyList(),
         val fido2Credentials: List<Fido2Credentials> = emptyList(),
         val totp: Totp? = null,
     ) {

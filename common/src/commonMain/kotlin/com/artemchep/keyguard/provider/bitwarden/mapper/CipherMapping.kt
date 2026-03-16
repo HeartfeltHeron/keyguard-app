@@ -68,6 +68,8 @@ suspend fun BitwardenCipher.toDomain(
         card = card?.toDomain(),
         identity = identity?.toDomain(),
         sshKey = sshKey?.toDomain(),
+        // other
+        passwordHistory = passwordHistory.map(BitwardenCipher.Login.PasswordHistory::toDomain),
     )
 }
 
@@ -172,7 +174,6 @@ suspend fun BitwardenCipher.Login.toDomain(
         getPasswordStrength(it).attempt().bind().getOrNull()
     },
     passwordRevisionDate = passwordRevisionDate,
-    passwordHistory = passwordHistory.map(BitwardenCipher.Login.PasswordHistory::toDomain),
     totp = totp
         ?.let { raw ->
             TotpToken

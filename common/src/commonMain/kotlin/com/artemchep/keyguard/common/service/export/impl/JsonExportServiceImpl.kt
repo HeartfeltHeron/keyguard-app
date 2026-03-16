@@ -217,15 +217,14 @@ class JsonExportServiceImpl(
         // login object. It also should always be in the json.
         run {
             val key = "passwordHistory"
-            val list = login
-                ?.passwordHistory
-                ?.map { item ->
+            val list = passwordHistory
+                .map { item ->
                     ItemLoginPasswordHistoryExportEntity(
                         lastUsedDate = item.lastUsedDate,
                         password = item.password,
                     )
                 }
-            if (!list.isNullOrEmpty()) {
+            if (list.isNotEmpty()) {
                 putJsonArray(
                     key = key,
                 ) {

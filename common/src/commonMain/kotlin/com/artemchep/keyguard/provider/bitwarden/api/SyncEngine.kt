@@ -819,7 +819,7 @@ class SyncEngine(
                 // https://github.com/dani-garcia/vaultwarden/pull/4386#issuecomment-2614321170
                 val passwordRevision = local.login?.passwordRevisionDate
                     ?.isOver6DigitsNanosOfSecond() == true
-                val passwordHistory = local.login?.passwordHistory.orEmpty()
+                val passwordHistory = local.passwordHistory
                     .any { it.lastUsedDate?.isOver6DigitsNanosOfSecond() == true }
                 if (passwordRevision || passwordHistory) {
                     return@syncX true

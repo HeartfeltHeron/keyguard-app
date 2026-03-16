@@ -795,7 +795,7 @@ fun RememberStateFlowScope.cipherViewPasswordHistoryAction(
         leading = {
             BadgedBox(
                 badge = {
-                    val count = cipher.login?.passwordHistory?.size ?: 0
+                    val count = cipher.passwordHistory.size
                     AnimatedTotalCounterBadge(
                         count = count,
                     )

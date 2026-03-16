@@ -67,14 +67,6 @@ fun BitwardenCipher.Companion.encrypted(
                     username = username,
                     password = password,
                     passwordRevisionDate = passwordRevisionDate,
-                    passwordHistory = entity.passwordHistory
-                        .orEmpty()
-                        .map {
-                            BitwardenCipher.Login.PasswordHistory(
-                                password = it.password,
-                                lastUsedDate = it.lastUsedDate,
-                            )
-                        },
                     totp = totp,
                     uris = uris
                         .orEmpty()
@@ -153,6 +145,15 @@ fun BitwardenCipher.Companion.encrypted(
                     privateKey = privateKey,
                     publicKey = publicKey,
                     fingerprint = keyFingerprint,
+                )
+            },
+        // other
+        passwordHistory = entity.passwordHistory
+            .orEmpty()
+            .map {
+                BitwardenCipher.Login.PasswordHistory(
+                    password = it.password,
+                    lastUsedDate = it.lastUsedDate,
                 )
             },
     ).let {

@@ -517,7 +517,7 @@ fun RememberStateFlowScope.createCipherSelectionFlow(
 
     if (selectedCiphers.size == 1 && selectedCiphersAllLogins) {
         val cipher = selectedCiphers.first()
-        if (!cipher.login?.passwordHistory.isNullOrEmpty()) {
+        if (cipher.passwordHistory.isNotEmpty()) {
             actions += cipherViewPasswordHistoryAction(
                 cipher = cipher,
             ).verify(verify)

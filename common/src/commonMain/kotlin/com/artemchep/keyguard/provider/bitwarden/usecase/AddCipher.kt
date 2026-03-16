@@ -29,6 +29,7 @@ import com.artemchep.keyguard.platform.util.isRelease
 import com.artemchep.keyguard.provider.bitwarden.crypto.makeCipherCryptoKeyMaterial
 import com.artemchep.keyguard.provider.bitwarden.mapper.toDomain
 import com.artemchep.keyguard.provider.bitwarden.usecase.util.ModifyDatabase
+import com.artemchep.keyguard.provider.bitwarden.usecase.util.withPasswordChange
 import kotlinx.collections.immutable.toPersistentList
 import kotlin.time.Clock
 import kotlin.time.Instant
@@ -402,6 +403,45 @@ private suspend fun BitwardenCipher.Companion.of(
             }
     }
 
+    val passwordHistory = if (old != null) {
+        val list = old.passwordHistory
+            .withPasswordChange(
+                previousPassword = old.login?.password,
+                nextPassword = request.login.password
+                    ?.takeIf { it.isNotEmpty() },
+                at = now,
+            )
+            .toMutableList()
+
+        //
+        // Track changed fields as well.
+        //
+
+        fun BitwardenCipher.Field.shouldBeTracked() =
+            this.type == BitwardenCipher.Field.Type.Hidden &&
+                    !this.value.isNullOrBlank()
+
+        val oldFieldsNoDuplicates = old.fields
+            .filter { oldField ->
+                oldField.shouldBeTracked()
+            }
+            .distinct()
+        oldFieldsNoDuplicates.forEach { oldField ->
+            val shouldBeTracked = fields
+                .none { oldField == it }
+            if (shouldBeTracked) {
+                val password = oldField.name.orEmpty() + ": " + oldField.value.orEmpty()
+                list += BitwardenCipher.Login.PasswordHistory(
+                    password = password,
+                    lastUsedDate = now,
+                )
+            }
+        }
+        list
+    } else {
+        emptyList()
+    }
+
     val keyBase64 = old?.keyBase64
         ?: if (!isRelease) {
             val key = cryptoGenerator.makeCipherCryptoKeyMaterial()
@@ -446,6 +486,8 @@ private suspend fun BitwardenCipher.Companion.of(
         card = card,
         identity = identity,
         sshKey = sshKey,
+        // other
+        passwordHistory = passwordHistory,
     )
 }
 
@@ -528,20 +570,6 @@ internal suspend fun BitwardenCipher.Login.Companion.of(
     val username = _username?.takeIf { it.isNotEmpty() }
     val password = _password?.takeIf { it.isNotEmpty() }
 
-    val passwordHistory = if (oldLogin != null) {
-        val list = oldLogin.passwordHistory.toMutableList()
-        // The existing password was changed, so we should
-        // add the it one to the history.
-        if (password != oldLogin.password && oldLogin.password != null) {
-            list += BitwardenCipher.Login.PasswordHistory(
-                password = oldLogin.password,
-                lastUsedDate = now,
-            )
-        }
-        list
-    } else {
-        emptyList()
-    }
     val passwordRevisionDate = now
         .takeIf {
             // The password must be v2+ to have the revision date.
@@ -622,7 +650,6 @@ internal suspend fun BitwardenCipher.Login.Companion.of(
         password = password,
         passwordStrength = passwordStrength,
         passwordRevisionDate = passwordRevisionDate,
-        passwordHistory = passwordHistory,
         uris = uris,
         fido2Credentials = fido2Credentials,
         totp = totp,

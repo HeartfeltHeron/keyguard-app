@@ -1136,7 +1136,7 @@ fun vaultViewScreenState(
                         cipherViewPasswordHistoryAction(
                             cipher = secretOrNull,
                         )
-                            .takeIf { !secretOrNull.login?.passwordHistory.isNullOrEmpty() }
+                            .takeIf { secretOrNull.passwordHistory.isNotEmpty() }
                             ?.verify(verify),
                         cipherChangeNameAction(
                             changeCipherNameById = changeCipherNameById,

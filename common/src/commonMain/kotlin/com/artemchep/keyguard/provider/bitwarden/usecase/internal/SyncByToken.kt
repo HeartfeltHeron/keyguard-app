@@ -1191,6 +1191,33 @@ class SyncByKeePassTokenImpl(
                 parsedDate
             }
 
+        fun getPassword(entry: Entry) = entry.fields.password?.content
+            .takeUnless { it.isNullOrEmpty() }
+
+        // Get the password history
+        val passwordHistory = kotlin.run {
+            val history = mutableListOf<BitwardenCipher.Login.PasswordHistory>()
+
+            var lastPassword = getPassword(remote)
+            remote.history
+                // Make sure that we have the data in a
+                // chronological order.
+                .sortedByDescending {
+                    it.times?.lastModificationTime
+                }
+                .forEach { entry ->
+                    val curPassword = getPassword(entry)
+                    if (curPassword != null && curPassword != lastPassword) {
+                        lastPassword = curPassword
+                        history += BitwardenCipher.Login.PasswordHistory(
+                            password = curPassword,
+                            lastUsedDate = entry.times?.lastModificationTime?.toKotlinInstant(),
+                        )
+                    }
+                }
+            history
+        }
+
         val customFields = scope.getAvailableFields()
             .asSequence()
             .map { field ->
@@ -1305,6 +1332,7 @@ class SyncByKeePassTokenImpl(
                     )
                 },
             attachments = attachments,
+            passwordHistory = passwordHistory,
             login = login,
             card = card,
             identity = identity,
@@ -1457,28 +1485,6 @@ class SyncByKeePassTokenImpl(
                     ?.takeIf { lastPassword != null }
             revDate?.toKotlinInstant()
         }
-        val passwordHistory = kotlin.run {
-            val history = mutableListOf<BitwardenCipher.Login.PasswordHistory>()
-
-            var lastPassword = getPassword(remote)
-            remote.history
-                // Make sure that we have the data in a
-                // chronological order.
-                .sortedByDescending {
-                    it.times?.lastModificationTime
-                }
-                .forEach { entry ->
-                    val curPassword = getPassword(entry)
-                    if (curPassword != null && curPassword != lastPassword) {
-                        lastPassword = curPassword
-                        history += BitwardenCipher.Login.PasswordHistory(
-                            password = curPassword,
-                            lastUsedDate = entry.times?.lastModificationTime?.toKotlinInstant(),
-                        )
-                    }
-                }
-            history
-        }
 
         val fido2Credentials = kotlin.run {
             val prefix = "FIDO2 Credentials Blob #"
@@ -1537,7 +1543,6 @@ class SyncByKeePassTokenImpl(
             username = scope.consumeFieldAndReturnContent(key = BasicField.UserName()),
             password = scope.consumeFieldAndReturnContent(key = BasicField.Password()),
             passwordRevisionDate = passwordRevDate,
-            passwordHistory = passwordHistory,
             fido2Credentials = fido2Credentials,
             uris = uris,
             totp = totp,

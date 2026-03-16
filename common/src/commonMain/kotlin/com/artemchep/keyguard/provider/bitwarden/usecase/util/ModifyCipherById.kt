@@ -64,7 +64,7 @@ class ModifyCipherById(
                             ?: new.data_.revisionDate
                                 .takeIf {
                                     login.password != null ||
-                                            login.passwordHistory.isNotEmpty()
+                                            new.data_.passwordHistory.isNotEmpty()
                                 }
                         login.copy(passwordRevisionDate = passwordRevisionDate)
                     }
