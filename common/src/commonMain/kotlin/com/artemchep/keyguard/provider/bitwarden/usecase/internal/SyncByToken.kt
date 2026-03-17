@@ -18,6 +18,7 @@ import app.keemobile.kotpass.models.Group
 import app.keemobile.kotpass.models.TimeData
 import com.artemchep.keyguard.common.exception.HttpException
 import com.artemchep.keyguard.common.io.IO
+import com.artemchep.keyguard.common.io.attempt
 import com.artemchep.keyguard.common.io.biFlatTap
 import com.artemchep.keyguard.common.io.bind
 import com.artemchep.keyguard.common.io.measure
@@ -1142,6 +1143,7 @@ class SyncByKeePassTokenImpl(
                 login = decodeToCipherLoginEntity(
                     scope = scope,
                     remote = remote,
+                    local = local,
                 )
             }
 
@@ -1354,9 +1356,10 @@ class SyncByKeePassTokenImpl(
         )
     }
 
-    private fun decodeToCipherLoginEntity(
+    private suspend fun decodeToCipherLoginEntity(
         scope: DecodeToCipherScope,
         remote: Entry,
+        local: BitwardenCipher?,
     ): BitwardenCipher.Login {
         val uris = kotlin.run {
             val prefix = "KP2A_URL_"
@@ -1539,9 +1542,30 @@ class SyncByKeePassTokenImpl(
                 .map { entry -> entry.credentials }
         }
 
+        val password = scope
+            .consumeFieldAndReturnContent(key = BasicField.Password())
+        // Immediately calculate the password strength, re-using
+        // the already known badge if possible.
+        val passwordStrength = if (password != null) {
+            local?.login?.passwordStrength
+                .takeIf { local?.login?.password == password }
+            // Generate a password strength badge.
+                ?: getPasswordStrength(password)
+                    .attempt()
+                    .bind()
+                    .getOrNull()
+                    ?.let { ps ->
+                        BitwardenCipher.Login.PasswordStrength(
+                            password = password,
+                            crackTimeSeconds = ps.crackTimeSeconds,
+                            version = ps.version,
+                        )
+                    }
+        } else null
         return BitwardenCipher.Login(
             username = scope.consumeFieldAndReturnContent(key = BasicField.UserName()),
-            password = scope.consumeFieldAndReturnContent(key = BasicField.Password()),
+            password = password,
+            passwordStrength = passwordStrength,
             passwordRevisionDate = passwordRevDate,
             fido2Credentials = fido2Credentials,
             uris = uris,
