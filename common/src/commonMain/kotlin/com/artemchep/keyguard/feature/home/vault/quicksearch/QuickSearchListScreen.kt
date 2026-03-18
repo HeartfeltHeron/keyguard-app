@@ -36,14 +36,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -51,6 +54,8 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -64,9 +69,15 @@ import com.artemchep.keyguard.feature.PromoView
 import com.artemchep.keyguard.feature.home.vault.component.AccountListItemTextIcon
 import com.artemchep.keyguard.feature.home.vault.component.AddAccountView
 import com.artemchep.keyguard.feature.home.vault.component.FlatItemLayoutExpressive
+import com.artemchep.keyguard.feature.home.vault.component.SearchQualifierSuggestionPopup
 import com.artemchep.keyguard.feature.home.vault.component.SmartBadge
+import com.artemchep.keyguard.feature.home.vault.component.acceptSearchQualifierSuggestion
+import com.artemchep.keyguard.feature.home.vault.component.canAcceptSearchQualifierSuggestion
+import com.artemchep.keyguard.feature.home.vault.component.rememberSearchQueryHighlightVisualTransformation
+import com.artemchep.keyguard.feature.home.vault.component.toTextFieldValue
 import com.artemchep.keyguard.feature.home.vault.model.VaultItem2
 import com.artemchep.keyguard.feature.home.vault.screen.VaultViewRoute
+import com.artemchep.keyguard.feature.home.vault.search.query.VaultSearchQualifierApplyResult
 import com.artemchep.keyguard.feature.keyguard.setup.keyguardSpan
 import com.artemchep.keyguard.feature.navigation.LocalNavigationController
 import com.artemchep.keyguard.feature.navigation.NavigationAnimation
@@ -78,8 +89,8 @@ import com.artemchep.keyguard.feature.navigation.transform
 import com.artemchep.keyguard.feature.rememberPromoViewStatus
 import com.artemchep.keyguard.feature.twopane.EmptyKeyguardBox
 import com.artemchep.keyguard.platform.LocalAnimationFactor
-import com.artemchep.keyguard.res.Res
 import com.artemchep.keyguard.res.*
+import com.artemchep.keyguard.res.Res
 import com.artemchep.keyguard.ui.DisabledEmphasisAlpha
 import com.artemchep.keyguard.ui.FlatItemTextContent
 import com.artemchep.keyguard.ui.PlainTextField
@@ -113,50 +124,60 @@ internal fun QuickSearchListScreen(
     val getTotpCode: GetTotpCode = remember(directDI) { directDI.instance() }
     val scope = rememberCoroutineScope()
     val focusRequester = remember { FocusRequester2() }
-    val performAction = remember(selectedItem, controller, getTotpCode, scope, focusRequester) {
-        { actionType: QuickSearchActionType ->
-            val item = selectedItem ?: return@remember
-            performQuickSearchAction(
-                actionType = actionType,
-                item = item,
-                controller = controller,
-                getTotpCode = getTotpCode,
-                scope = scope,
-                onFinished = focusRequester::requestFocus,
-            )
-        }
-    }
-    val performShortcutAction = remember(
-        selectedItem,
-        controller,
-        getTotpCode,
-        scope,
-        onDismissRequest,
-    ) {
-        { actionType: QuickSearchActionType ->
-            val item = selectedItem ?: return@remember
-            performQuickSearchAction(
-                actionType = actionType,
-                item = item,
-                controller = controller,
-                getTotpCode = getTotpCode,
-                scope = scope,
-                onFinished = {
-                    onDismissRequest?.invoke()
-                },
-            )
-        }
-    }
-    val performDefaultAction = remember(state.defaultAction, selectedItem, performAction) {
-        {
-            val actionType = state.defaultAction
-                ?: return@remember
-            if (selectedItem != null) {
-                performAction(actionType)
+    val performAction =
+        remember(selectedItem, controller, getTotpCode, scope, focusRequester) {
+            { actionType: QuickSearchActionType ->
+                val item = selectedItem ?: return@remember
+                performQuickSearchAction(
+                    actionType = actionType,
+                    item = item,
+                    controller = controller,
+                    getTotpCode = getTotpCode,
+                    scope = scope,
+                    onFinished = focusRequester::requestFocus,
+                )
             }
         }
-    }
+    val performShortcutAction =
+        remember(
+            selectedItem,
+            controller,
+            getTotpCode,
+            scope,
+            onDismissRequest,
+        ) {
+            { actionType: QuickSearchActionType ->
+                val item = selectedItem ?: return@remember
+                performQuickSearchAction(
+                    actionType = actionType,
+                    item = item,
+                    controller = controller,
+                    getTotpCode = getTotpCode,
+                    scope = scope,
+                    onFinished = {
+                        onDismissRequest?.invoke()
+                    },
+                )
+            }
+        }
+    val performDefaultAction =
+        remember(state.defaultAction, selectedItem, performAction) {
+            {
+                val actionType =
+                    state.defaultAction
+                        ?: return@remember
+                if (selectedItem != null) {
+                    performAction(actionType)
+                }
+            }
+        }
     val resultsListState = rememberLazyListState()
+    val searchInteractionSource =
+        remember {
+            MutableInteractionSource()
+        }
+    val isSearchFieldFocused by searchInteractionSource.collectIsFocusedAsState()
+    val quickQuery = state.query
 
     LaunchedEffect(activationRevision) {
         delay(200L)
@@ -171,55 +192,77 @@ internal fun QuickSearchListScreen(
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surfaceContainerLow)
-            .onPreviewKeyEvent { event ->
-                handleQuickSearchKeyEvent(
-                    input = event.toQuickSearchKeyInput(),
-                    state = state,
-                    onPerformDefaultAction = performDefaultAction,
-                    onPerformSelectedAction = performAction,
-                    onPerformShortcutAction = performShortcutAction,
-                )
-            },
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                .onPreviewKeyEvent { event ->
+                    if (
+                        isSearchFieldFocused &&
+                        state.queryQualifierSuggestion != null &&
+                        event.key == Key.Tab &&
+                        event.type == KeyEventType.KeyDown &&
+                        !event.isShiftPressed
+                    ) {
+                        return@onPreviewKeyEvent false
+                    }
+                    handleQuickSearchKeyEvent(
+                        input = event.toQuickSearchKeyInput(),
+                        state = state,
+                        onPerformDefaultAction = performDefaultAction,
+                        onPerformSelectedAction = performAction,
+                        onPerformShortcutAction = performShortcutAction,
+                    )
+                },
     ) {
-        val quickQuery = state.query
+        val queryVisualTransformation =
+            rememberSearchQueryHighlightVisualTransformation(
+                state.queryHighlighting,
+            )
         QuickSearchSearch(
             modifier = Modifier,
             text = quickQuery.state.value,
             placeholder = stringResource(Res.string.vault_main_search_placeholder),
             focusRequester = focusRequester,
+            interactionSource = searchInteractionSource,
             focusFlow = quickQuery.focusFlow,
+            visualTransformation = queryVisualTransformation,
+            qualifierSuggestion = state.queryQualifierSuggestion,
+            onQualifierSuggestion = state.onQueryQualifierSuggestion,
             onTextChange = { value ->
                 state.onClearActionSelection()
                 quickQuery.onChange?.invoke(value)
             },
         )
         HorizontalDivider(
-            color = MaterialTheme.colorScheme.outline
-                .combineAlpha(0.18f),
+            color =
+                MaterialTheme.colorScheme.outline
+                    .combineAlpha(0.18f),
         )
         Row(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
         ) {
             Box(
-                modifier = Modifier
-                    .weight(0.40f)
-                    .fillMaxSize(),
+                modifier =
+                    Modifier
+                        .weight(0.40f)
+                        .fillMaxSize(),
             ) {
                 when (val emptyState = state.emptyState) {
                     QuickSearchEmptyState.Idle -> {
                         LazyColumn(
                             state = resultsListState,
-                            modifier = Modifier
-                                .fillMaxSize(),
-                            contentPadding = PaddingValues(
-                                top = 8.dp,
-                                bottom = 8.dp,
-                            ),
+                            modifier =
+                                Modifier
+                                    .fillMaxSize(),
+                            contentPadding =
+                                PaddingValues(
+                                    top = 8.dp,
+                                    bottom = 8.dp,
+                                ),
                         ) {
                             itemsIndexed(
                                 items = state.results,
@@ -239,18 +282,20 @@ internal fun QuickSearchListScreen(
 
                     is QuickSearchEmptyState.AddAccount -> {
                         AddAccountView(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(24.dp),
+                            modifier =
+                                Modifier
+                                    .fillMaxSize()
+                                    .padding(24.dp),
                             onClick = emptyState.onAddAccount,
                         )
                     }
 
                     QuickSearchEmptyState.Loading -> {
                         QuickSearchLoadingPlaceholder(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(8.dp),
+                            modifier =
+                                Modifier
+                                    .fillMaxSize()
+                                    .padding(8.dp),
                         )
                     }
 
@@ -264,18 +309,20 @@ internal fun QuickSearchListScreen(
             }
             VerticalDivider()
 
-            val color = kotlin.run {
-                val elevation = 0.75f // hardcoded for nice UI
-                surfaceElevationColor(elevation)
-            }
+            val color =
+                kotlin.run {
+                    val elevation = 0.75f // hardcoded for nice UI
+                    surfaceElevationColor(elevation)
+                }
             ProvideSurfaceColor(color) {
                 ReportSurfaceColor()
 
                 Box(
-                    modifier = Modifier
-                        .background(color)
-                        .weight(0.6f)
-                        .fillMaxSize(),
+                    modifier =
+                        Modifier
+                            .background(color)
+                            .weight(0.6f)
+                            .fillMaxSize(),
                 ) {
                     QuickSearchDetailPane(
                         item = selectedItem,
@@ -284,9 +331,10 @@ internal fun QuickSearchListScreen(
             }
         }
         QuickSearchActionStrip(
-            modifier = Modifier
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                .fillMaxWidth(),
+            modifier =
+                Modifier
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                    .fillMaxWidth(),
             actions = state.actions,
             onActionClick = performAction,
         )
@@ -299,18 +347,19 @@ private fun QuickSearchSearch(
     text: String,
     placeholder: String,
     focusRequester: FocusRequester2,
+    interactionSource: MutableInteractionSource,
     focusFlow: Flow<Unit>?,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
+    qualifierSuggestion: String? = null,
+    onQualifierSuggestion: ((String) -> VaultSearchQualifierApplyResult?)? = null,
     playPromo: Boolean = false,
     onTextChange: ((String) -> Unit)?,
 ) {
-    val promoState = rememberPromoViewStatus(
-        playPromo = playPromo,
-        ready = onTextChange != null,
-    )
-
-    val interactionSource = remember {
-        MutableInteractionSource()
-    }
+    val promoState =
+        rememberPromoViewStatus(
+            playPromo = playPromo,
+            ready = onTextChange != null,
+        )
 
     LaunchedEffect(focusFlow) {
         focusFlow
@@ -319,92 +368,159 @@ private fun QuickSearchSearch(
             focusRequester.requestFocus(showKeyboard = true)
         }
     }
+    var fieldValue by remember {
+        mutableStateOf(text.toTextFieldValue())
+    }
+    var lastPropagatedText by remember {
+        mutableStateOf(text)
+    }
+    LaunchedEffect(text) {
+        if (text != lastPropagatedText) {
+            fieldValue = text.toTextFieldValue()
+            lastPropagatedText = text
+        }
+    }
 
     val isFocused by interactionSource.collectIsFocusedAsState()
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(64.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    val updatedOnChange by rememberUpdatedState(onTextChange)
+    val updatedOnQualifierSuggestion by rememberUpdatedState(onQualifierSuggestion)
+
+    fun updateFieldValue(nextFieldValue: TextFieldValue) {
+        fieldValue = nextFieldValue
+        lastPropagatedText = nextFieldValue.text
+        updatedOnChange?.invoke(nextFieldValue.text)
+    }
+
+    fun acceptQualifierSuggestion(): Boolean {
+        val nextFieldValue =
+            acceptSearchQualifierSuggestion(
+                value = fieldValue,
+                onQualifierSuggestion = updatedOnQualifierSuggestion,
+            ) ?: return false
+        updateFieldValue(nextFieldValue)
+        focusRequester.requestFocus()
+        return true
+    }
+    Box(
+        modifier = modifier,
     ) {
-        Spacer(
-            modifier = Modifier
-                .size(24.dp),
-        )
-        Icon(
-            imageVector = Icons.Outlined.Search,
-            contentDescription = null,
-            tint = if (isFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground,
-        )
-        Spacer(
-            modifier = Modifier
-                .size(16.dp),
-        )
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(64.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Spacer(
+                modifier =
+                    Modifier
+                        .size(24.dp),
+            )
+            Icon(
+                imageVector = Icons.Outlined.Search,
+                contentDescription = null,
+                tint = if (isFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground,
+            )
+            Spacer(
+                modifier =
+                    Modifier
+                        .size(16.dp),
+            )
 
-        val textStyle = TextStyle(
-            fontSize = 20.sp,
-        )
-        val updatedOnChange by rememberUpdatedState(onTextChange)
-        PlainTextField(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight()
-                .focusRequester2(focusRequester)
-                // When focused, clicking the Escape key should
-                // clear the text field.
-                .onKeyEvent { keyEvent ->
-                    if (
-                        keyEvent.key == Key.Escape &&
-                        keyEvent.type == KeyEventType.KeyDown &&
-                        text.isNotEmpty()
+            val textStyle =
+                TextStyle(
+                    fontSize = 20.sp,
+                )
+            PlainTextField(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight()
+                        .focusRequester2(focusRequester)
+                        // When focused, clicking the Escape key should
+                        // clear the text field.
+                        .onKeyEvent { keyEvent ->
+                            if (
+                                keyEvent.key == Key.Tab &&
+                                keyEvent.type == KeyEventType.KeyDown &&
+                                !keyEvent.isShiftPressed &&
+                                qualifierSuggestion != null &&
+                                canAcceptSearchQualifierSuggestion(fieldValue)
+                            ) {
+                                return@onKeyEvent acceptQualifierSuggestion()
+                            }
+
+                            if (
+                                keyEvent.key == Key.Escape &&
+                                keyEvent.type == KeyEventType.KeyDown &&
+                                fieldValue.text.isNotEmpty()
+                            ) {
+                                updateFieldValue("".toTextFieldValue())
+                                return@onKeyEvent true
+                            }
+
+                            false
+                        },
+                interactionSource = interactionSource,
+                value = fieldValue,
+                textStyle = textStyle,
+                placeholder = {
+                    PromoView(
+                        state = promoState,
+                        promo = {
+                            val promo =
+                                remember {
+                                    keyguardSpan()
+                                }
+                            Text(
+                                text = promo,
+                                style = textStyle,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        },
                     ) {
-                        updatedOnChange?.invoke("")
-                        return@onKeyEvent true
-                    }
-
-                    false
-                },
-            interactionSource = interactionSource,
-            value = text,
-            textStyle = textStyle,
-            placeholder = {
-                PromoView(
-                    state = promoState,
-                    promo = {
-                        val promo = remember {
-                            keyguardSpan()
-                        }
                         Text(
-                            text = promo,
+                            text = placeholder,
                             style = textStyle,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
-                    },
-                ) {
-                    Text(
-                        text = placeholder,
-                        style = textStyle,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            },
-            enabled = onTextChange != null,
-            onValueChange = {
-                updatedOnChange?.invoke(it)
-            },
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Text,
-                imeAction = ImeAction.Done,
-                autoCorrectEnabled = false,
-            ),
-            singleLine = true,
-        )
-        Spacer(
-            modifier = Modifier
-                .size(8.dp),
-        )
+                    }
+                },
+                enabled = onTextChange != null,
+                visualTransformation = visualTransformation,
+                onValueChange = {
+                    updateFieldValue(it)
+                },
+                keyboardOptions =
+                    KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Done,
+                        autoCorrectEnabled = false,
+                    ),
+                singleLine = true,
+            )
+            Spacer(
+                modifier =
+                    Modifier
+                        .size(8.dp),
+            )
+        }
+
+        if (
+            isFocused &&
+            qualifierSuggestion != null &&
+            onQualifierSuggestion != null &&
+            canAcceptSearchQualifierSuggestion(fieldValue)
+        ) {
+            SearchQualifierSuggestionPopup(
+                suggestion = qualifierSuggestion,
+                onClick = {
+                    acceptQualifierSuggestion()
+                },
+            )
+        }
     }
 }
 
@@ -428,27 +544,31 @@ private fun QuickSearchResultRow(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    val backgroundColor = when {
-        selected -> MaterialTheme.colorScheme.selectedContainer
-        else -> Color.Unspecified
-    }
+    val backgroundColor =
+        when {
+            selected -> MaterialTheme.colorScheme.selectedContainer
+            else -> Color.Unspecified
+        }
     // We explicitly do not support the expressive shape merging here,
     // because it looks ugly.
     FlatItemLayoutExpressive(
-        modifier = Modifier
-            .fillMaxWidth(),
+        modifier =
+            Modifier
+                .fillMaxWidth(),
         backgroundColor = backgroundColor,
-        padding = PaddingValues(
-            start = 8.dp,
-            end = 8.dp,
-            top = 1.dp,
-            bottom = 2.dp, // in Android notifications the margin is 3 dp
-        ),
+        padding =
+            PaddingValues(
+                start = 8.dp,
+                end = 8.dp,
+                top = 1.dp,
+                bottom = 2.dp, // in Android notifications the margin is 3 dp
+            ),
         content = {
             FlatItemTextContent(
                 title = {
-                    val title = item.title
-                        .takeUnless { it.isEmpty() }
+                    val title =
+                        item.title
+                            .takeUnless { it.isEmpty() }
                     if (title != null) {
                         Text(
                             text = title,
@@ -459,25 +579,27 @@ private fun QuickSearchResultRow(
                     } else {
                         Text(
                             text = stringResource(Res.string.empty_value),
-                            color = LocalContentColor.current
-                                .combineAlpha(DisabledEmphasisAlpha),
+                            color =
+                                LocalContentColor.current
+                                    .combineAlpha(DisabledEmphasisAlpha),
                             overflow = TextOverflow.Ellipsis,
                             maxLines = 1,
                         )
                     }
                 },
-                text = item.text
-                    ?.takeIf { it.isNotEmpty() }
-                    ?.let {
-                        // composable
-                        {
-                            Text(
-                                text = it,
-                                overflow = TextOverflow.Ellipsis,
-                                maxLines = if (item.source.type == DSecret.Type.SecureNote) 4 else 2,
-                            )
-                        }
-                    },
+                text =
+                    item.text
+                        ?.takeIf { it.isNotEmpty() }
+                        ?.let {
+                            // composable
+                            {
+                                Text(
+                                    text = it,
+                                    overflow = TextOverflow.Ellipsis,
+                                    maxLines = if (item.source.type == DSecret.Type.SecureNote) 4 else 2,
+                                )
+                            }
+                        },
             )
         },
         leading = {
@@ -491,18 +613,17 @@ private fun QuickSearchResultRow(
 }
 
 @Composable
-private fun QuickSearchLoadingPlaceholder(
-    modifier: Modifier = Modifier,
-) {
+private fun QuickSearchLoadingPlaceholder(modifier: Modifier = Modifier) {
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         repeat(6) {
             Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(62.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(62.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
                 shape = RoundedCornerShape(16.dp),
             ) {}
@@ -521,9 +642,10 @@ private fun QuickSearchActionStrip(
     }
 
     Row(
-        modifier = modifier
-            .horizontalScroll(rememberScrollState())
-            .padding(8.dp),
+        modifier =
+            modifier
+                .horizontalScroll(rememberScrollState())
+                .padding(8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         actions.forEach { action ->
@@ -543,30 +665,31 @@ private fun QuickSearchActionStrip(
 }
 
 @Composable
-private fun QuickSearchDetailPane(
-    item: VaultItem2.Item?,
-) {
+private fun QuickSearchDetailPane(item: VaultItem2.Item?) {
     if (item == null) {
         EmptyKeyguardBox(
-            modifier = Modifier
-                .fillMaxSize(),
+            modifier =
+                Modifier
+                    .fillMaxSize(),
         )
         return
     }
 
-    val route = remember(
-        item.accountId,
-        item.id,
-    ) {
-        VaultViewRoute(
-            itemId = item.id,
-            accountId = item.accountId,
-        )
-    }
+    val route =
+        remember(
+            item.accountId,
+            item.id,
+        ) {
+            VaultViewRoute(
+                itemId = item.id,
+                accountId = item.accountId,
+            )
+        }
     val updatedAnimationScale by rememberUpdatedState(LocalAnimationFactor)
     AnimatedContent(
-        modifier = Modifier
-            .fillMaxSize(),
+        modifier =
+            Modifier
+                .fillMaxSize(),
         targetState = route,
         transitionSpec = {
             val animationType = NavAnimation.DYNAMIC
@@ -594,38 +717,39 @@ internal fun handleQuickSearchKeyEvent(
     onPerformDefaultAction: () -> Unit,
     onPerformSelectedAction: (QuickSearchActionType) -> Unit,
     onPerformShortcutAction: (QuickSearchActionType) -> Unit,
-): Boolean = quickSearchKeyEventAction(
-    input = input,
-    state = state,
-)?.let { action ->
-    when (action) {
-        is QuickSearchKeyEventAction.MoveSelection -> {
-            state.onMoveSelection(action.direction)
-        }
+): Boolean =
+    quickSearchKeyEventAction(
+        input = input,
+        state = state,
+    )?.let { action ->
+        when (action) {
+            is QuickSearchKeyEventAction.MoveSelection -> {
+                state.onMoveSelection(action.direction)
+            }
 
-        is QuickSearchKeyEventAction.MoveActionSelection -> {
-            state.onMoveActionSelection(action.direction)
-        }
+            is QuickSearchKeyEventAction.MoveActionSelection -> {
+                state.onMoveActionSelection(action.direction)
+            }
 
-        is QuickSearchKeyEventAction.PerformSelectedAction -> {
-            onPerformSelectedAction(action.type)
-        }
+            is QuickSearchKeyEventAction.PerformSelectedAction -> {
+                onPerformSelectedAction(action.type)
+            }
 
-        is QuickSearchKeyEventAction.PerformShortcutAction -> {
-            onPerformShortcutAction(action.type)
-        }
+            is QuickSearchKeyEventAction.PerformShortcutAction -> {
+                onPerformShortcutAction(action.type)
+            }
 
-        QuickSearchKeyEventAction.PerformDefaultAction -> {
-            onPerformDefaultAction()
-        }
+            QuickSearchKeyEventAction.PerformDefaultAction -> {
+                onPerformDefaultAction()
+            }
 
-        QuickSearchKeyEventAction.ClearQuery -> {
-            state.onClearActionSelection()
-            state.query.onChange?.invoke("")
+            QuickSearchKeyEventAction.ClearQuery -> {
+                state.onClearActionSelection()
+                state.query.onChange?.invoke("")
+            }
         }
-    }
-    true
-} ?: false
+        true
+    } ?: false
 
 internal sealed interface QuickSearchResolvedAction {
     data class Copy(
@@ -663,10 +787,11 @@ internal fun performQuickSearchAction(
 
         is QuickSearchResolvedAction.CopyOtp -> {
             scope.launch {
-                val code = getTotpCode(resolvedAction.token)
-                    .firstOrNull()
-                    ?.code
-                    ?: return@launch
+                val code =
+                    getTotpCode(resolvedAction.token)
+                        .firstOrNull()
+                        ?.code
+                        ?: return@launch
                 item.copyText.copy(
                     text = code,
                     hidden = false,
@@ -681,39 +806,50 @@ internal fun performQuickSearchAction(
             onFinished()
         }
 
-        null -> Unit
+        null -> {
+            Unit
+        }
     }
 }
 
 internal fun quickSearchResolvedAction(
     actionType: QuickSearchActionType,
     item: VaultItem2.Item,
-): QuickSearchResolvedAction? = when (actionType) {
-    QuickSearchActionType.CopyPrimary -> quickSearchPrimaryCopy(item.source)
-        ?.let { copy ->
-            QuickSearchResolvedAction.Copy(
-                value = copy.value,
-                hidden = false,
-                type = copy.type,
-            )
+): QuickSearchResolvedAction? =
+    when (actionType) {
+        QuickSearchActionType.CopyPrimary -> {
+            quickSearchPrimaryCopy(item.source)
+                ?.let { copy ->
+                    QuickSearchResolvedAction.Copy(
+                        value = copy.value,
+                        hidden = false,
+                        type = copy.type,
+                    )
+                }
         }
 
-    QuickSearchActionType.CopySecret -> quickSearchSecretCopy(item.source)
-        ?.let { copy ->
-            QuickSearchResolvedAction.Copy(
-                value = copy.value,
-                hidden = true,
-                type = copy.type,
-            )
+        QuickSearchActionType.CopySecret -> {
+            quickSearchSecretCopy(item.source)
+                ?.let { copy ->
+                    QuickSearchResolvedAction.Copy(
+                        value = copy.value,
+                        hidden = true,
+                        type = copy.type,
+                    )
+                }
         }
 
-    QuickSearchActionType.CopyOtp -> quickSearchOtpToken(item.source)
-        ?.let { token ->
-            QuickSearchResolvedAction.CopyOtp(token.token)
+        QuickSearchActionType.CopyOtp -> {
+            quickSearchOtpToken(item.source)
+                ?.let { token ->
+                    QuickSearchResolvedAction.CopyOtp(token.token)
+                }
         }
 
-    QuickSearchActionType.OpenInBrowser -> quickSearchLaunchUrl(item.source)
-        ?.let { url ->
-            QuickSearchResolvedAction.OpenInBrowser(url)
+        QuickSearchActionType.OpenInBrowser -> {
+            quickSearchLaunchUrl(item.source)
+                ?.let { url ->
+                    QuickSearchResolvedAction.OpenInBrowser(url)
+                }
         }
-}
+    }

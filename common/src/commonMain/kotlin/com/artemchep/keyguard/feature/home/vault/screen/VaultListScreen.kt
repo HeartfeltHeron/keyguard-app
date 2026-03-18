@@ -46,6 +46,7 @@ import com.artemchep.keyguard.LocalAppMode
 import com.artemchep.keyguard.feature.home.vault.VaultRoute
 import com.artemchep.keyguard.feature.home.vault.component.AddAccountView
 import com.artemchep.keyguard.feature.home.vault.component.VaultListItem
+import com.artemchep.keyguard.feature.home.vault.component.rememberSearchQueryHighlightVisualTransformation
 import com.artemchep.keyguard.feature.home.vault.model.FilterItem
 import com.artemchep.keyguard.feature.home.vault.model.VaultItem2
 import com.artemchep.keyguard.feature.localization.textResource
@@ -166,12 +167,18 @@ fun VaultListScreen(
     TwoPaneScreen(
         header = { modifier ->
             val subtitle = textResource(args.appBar?.subtitle)
+            val queryVisualTransformation = rememberSearchQueryHighlightVisualTransformation(
+                state.queryHighlighting,
+            )
             CustomSearchbarContent(
                 modifier = modifier,
                 searchFieldModifier = Modifier,
                 searchFieldModel = state.query,
                 searchFieldPlaceholder = stringResource(Res.string.vault_main_search_placeholder),
                 focusRequester = focusRequester,
+                searchFieldVisualTransformation = queryVisualTransformation,
+                searchFieldQualifierSuggestion = state.queryQualifierSuggestion,
+                onSearchFieldQualifierSuggestion = state.onQueryQualifierSuggestion,
                 title = args.appBar?.title,
                 subtitle = subtitle,
                 playPromo = true,
@@ -348,6 +355,9 @@ fun VaultHomeScreenListPane(
         dp.value = false
     }
     val updatedSelectCipher by rememberUpdatedState(newValue = state.selectCipher)
+    val queryVisualTransformation = rememberSearchQueryHighlightVisualTransformation(
+        state.queryHighlighting,
+    )
 
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val pullRefreshState = rememberPullRefreshState(
@@ -376,6 +386,9 @@ fun VaultHomeScreenListPane(
                     searchFieldModel = state.query,
                     searchFieldPlaceholder = stringResource(Res.string.vault_main_search_placeholder),
                     focusRequester = focusRequester,
+                    searchFieldVisualTransformation = queryVisualTransformation,
+                    searchFieldQualifierSuggestion = state.queryQualifierSuggestion,
+                    onSearchFieldQualifierSuggestion = state.onQueryQualifierSuggestion,
                     title = title,
                     subtitle = subtitle,
                     playPromo = true,

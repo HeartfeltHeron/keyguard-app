@@ -8,11 +8,16 @@ import com.artemchep.keyguard.common.usecase.CopyText
 import com.artemchep.keyguard.feature.auth.common.TextFieldModel2
 import com.artemchep.keyguard.feature.home.settings.accounts.model.AccountType
 import com.artemchep.keyguard.feature.home.vault.model.VaultItem2
+import com.artemchep.keyguard.feature.home.vault.search.query.VaultSearchQualifierApplyResult
+import com.artemchep.keyguard.feature.home.vault.search.query.highlight.QueryHighlighting
 import com.artemchep.keyguard.feature.navigation.keyboard.KeyShortcut
 
 @Immutable
 internal data class QuickSearchState(
     val query: TextFieldModel2 = TextFieldModel2(mutableStateOf("")),
+    val queryHighlighting: QueryHighlighting = QueryHighlighting.Empty,
+    val queryQualifierSuggestion: String? = null,
+    val onQueryQualifierSuggestion: ((String) -> VaultSearchQualifierApplyResult?)? = null,
     val results: List<QuickSearchResultItem> = emptyList(),
     val emptyState: QuickSearchEmptyState = QuickSearchEmptyState.Loading,
     val selectedItem: QuickSearchResultItem? = null,

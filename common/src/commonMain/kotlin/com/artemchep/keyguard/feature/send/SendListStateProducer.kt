@@ -12,6 +12,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.Key
+import arrow.core.identity
 import arrow.core.partially1
 import com.artemchep.keyguard.AppMode
 import com.artemchep.keyguard.common.io.launchIn
@@ -63,6 +64,7 @@ import com.artemchep.keyguard.feature.navigation.state.PersistedStorage
 import com.artemchep.keyguard.feature.navigation.state.copy
 import com.artemchep.keyguard.feature.navigation.state.produceScreenState
 import com.artemchep.keyguard.feature.search.search.SEARCH_DEBOUNCE
+import com.artemchep.keyguard.feature.search.search.debounceSearch
 import com.artemchep.keyguard.feature.send.add.SendAddRoute
 import com.artemchep.keyguard.feature.send.search.AccessCountSendSort
 import com.artemchep.keyguard.feature.send.search.AlphabeticalSendSort
@@ -710,7 +712,7 @@ fun sendListScreenState(
     val queryTrimmedFlow = querySink.map { it to it.trim() }
 
     val queryIndexedFlow = queryTrimmedFlow
-        .debounce(SEARCH_DEBOUNCE)
+        .debounceSearch { (_, queryTrimmed) -> queryTrimmed }
         .map { (_, queryTrimmed) ->
             if (queryTrimmed.isEmpty()) return@map null
             IndexedText(

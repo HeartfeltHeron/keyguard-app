@@ -10,6 +10,7 @@ import com.artemchep.keyguard.common.service.filter.AddCipherFilter
 import com.artemchep.keyguard.common.service.filter.GetCipherFilters
 import com.artemchep.keyguard.common.service.filter.RemoveCipherFilterById
 import com.artemchep.keyguard.common.service.filter.RenameCipherFilter
+import com.artemchep.keyguard.common.service.logging.LogRepository
 import com.artemchep.keyguard.common.service.filter.impl.AddCipherFilterImpl
 import com.artemchep.keyguard.common.service.filter.impl.GetCipherFiltersImpl
 import com.artemchep.keyguard.common.service.filter.impl.RemoveCipherFilterByIdImpl
@@ -113,6 +114,8 @@ import com.artemchep.keyguard.common.usecase.GetSshAgentFilter
 import com.artemchep.keyguard.common.usecase.GetTags
 import com.artemchep.keyguard.common.usecase.GetUrlBlocks
 import com.artemchep.keyguard.common.usecase.GetUrlOverrides
+import com.artemchep.keyguard.common.usecase.GetVaultSearchIndex
+import com.artemchep.keyguard.common.usecase.GetVaultSearchQualifierCatalog
 import com.artemchep.keyguard.common.usecase.GetWatchtowerAlerts
 import com.artemchep.keyguard.common.usecase.GetWatchtowerUnreadAlerts
 import com.artemchep.keyguard.common.usecase.GetWatchtowerUnreadCount
@@ -174,6 +177,8 @@ import com.artemchep.keyguard.common.usecase.impl.GetGeneratorHistoryImpl
 import com.artemchep.keyguard.common.usecase.impl.GetShouldRequestAppReviewImpl
 import com.artemchep.keyguard.common.usecase.impl.GetSshAgentImpl
 import com.artemchep.keyguard.common.usecase.impl.GetSshAgentFilterImpl
+import com.artemchep.keyguard.common.usecase.impl.GetVaultSearchIndexImpl
+import com.artemchep.keyguard.common.usecase.impl.GetVaultSearchQualifierCatalogImpl
 import com.artemchep.keyguard.common.usecase.impl.RemoveGeneratorHistoryByIdImpl
 import com.artemchep.keyguard.common.usecase.impl.RemoveGeneratorHistoryImpl
 import com.artemchep.keyguard.common.usecase.impl.WatchtowerBroadUris
@@ -186,6 +191,26 @@ import com.artemchep.keyguard.common.usecase.impl.WatchtowerPasswordPwned
 import com.artemchep.keyguard.common.usecase.impl.WatchtowerPasswordStrength
 import com.artemchep.keyguard.common.usecase.impl.WatchtowerUnsecureWebsite
 import com.artemchep.keyguard.common.usecase.impl.WatchtowerWebsitePwned
+import com.artemchep.keyguard.feature.home.vault.search.engine.Bm25SearchScorer
+import com.artemchep.keyguard.feature.home.vault.search.engine.DefaultSearchExecutor
+import com.artemchep.keyguard.feature.home.vault.search.engine.DefaultSearchTokenizer
+import com.artemchep.keyguard.feature.home.vault.search.engine.DevVaultSearchTraceSink
+import com.artemchep.keyguard.feature.home.vault.search.engine.DefaultVaultSearchIndexBuilder
+import com.artemchep.keyguard.feature.home.vault.search.engine.NoOpVaultSearchTraceSink
+import com.artemchep.keyguard.feature.home.vault.search.engine.SearchExecutor
+import com.artemchep.keyguard.feature.home.vault.search.engine.SearchScorer
+import com.artemchep.keyguard.feature.home.vault.search.engine.SearchTokenizer
+import com.artemchep.keyguard.feature.home.vault.search.engine.VaultSearchIndexBuilder
+import com.artemchep.keyguard.feature.home.vault.search.engine.VaultSearchTraceSink
+import com.artemchep.keyguard.feature.home.vault.search.query.compiler.DefaultVaultSearchQueryCompiler
+import com.artemchep.keyguard.feature.home.vault.search.query.compiler.VaultSearchQueryCompiler
+import com.artemchep.keyguard.feature.home.vault.search.query.highlight.DefaultVaultSearchQueryHighlighter
+import com.artemchep.keyguard.feature.home.vault.search.query.highlight.VaultSearchQueryHighlighter
+import com.artemchep.keyguard.feature.home.vault.search.query.lexer.DefaultVaultSearchLexer
+import com.artemchep.keyguard.feature.home.vault.search.query.lexer.VaultSearchLexer
+import com.artemchep.keyguard.feature.home.vault.search.query.parser.DefaultVaultSearchParser
+import com.artemchep.keyguard.feature.home.vault.search.query.parser.VaultSearchParser
+import com.artemchep.keyguard.platform.util.isRelease
 import com.artemchep.keyguard.core.store.DatabaseSyncer
 import com.artemchep.keyguard.core.store.bitwarden.BitwardenCipherRepositoryImpl
 import com.artemchep.keyguard.core.store.bitwarden.BitwardenCollectionRepositoryImpl
@@ -442,6 +467,58 @@ fun DI.Builder.createSubDi2(
     }
     bindSingleton<EquivalentDomainsBuilderFactory> {
         EquivalentDomainsBuilderFactory(this)
+    }
+    bindSingleton<SearchTokenizer> {
+        DefaultSearchTokenizer()
+    }
+    bindSingleton<SearchScorer> {
+        Bm25SearchScorer()
+    }
+    bindSingleton<SearchExecutor> {
+        DefaultSearchExecutor()
+    }
+    bindSingleton<VaultSearchTraceSink> {
+        if (isRelease) {
+            NoOpVaultSearchTraceSink
+        } else {
+            DevVaultSearchTraceSink(
+                logRepository = instance<LogRepository>(),
+            )
+        }
+    }
+    bindSingleton<VaultSearchLexer> {
+        DefaultVaultSearchLexer()
+    }
+    bindSingleton<VaultSearchParser> {
+        DefaultVaultSearchParser(
+            lexer = instance(),
+        )
+    }
+    bindSingleton<GetVaultSearchQualifierCatalog> {
+        GetVaultSearchQualifierCatalogImpl(this)
+    }
+    bindSingleton<VaultSearchQueryCompiler> {
+        DefaultVaultSearchQueryCompiler(
+            tokenizer = instance(),
+        )
+    }
+    bindSingleton<VaultSearchQueryHighlighter> {
+        DefaultVaultSearchQueryHighlighter(
+            parser = instance(),
+        )
+    }
+    bindSingleton<VaultSearchIndexBuilder> {
+        DefaultVaultSearchIndexBuilder(
+            tokenizer = instance(),
+            scorer = instance(),
+            executor = instance(),
+            parser = instance(),
+            compiler = instance(),
+            traceSink = instance(),
+        )
+    }
+    bindSingleton<GetVaultSearchIndex> {
+        GetVaultSearchIndexImpl(this)
     }
     bindSingleton<GetFolders> {
         GetFoldersImpl(this)

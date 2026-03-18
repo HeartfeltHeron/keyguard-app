@@ -5,8 +5,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
+import arrow.core.identity
 import com.artemchep.keyguard.common.io.nullable
 import com.artemchep.keyguard.common.model.DOrganization
+import com.artemchep.keyguard.common.model.DSecret
 import com.artemchep.keyguard.common.service.clipboard.ClipboardService
 import com.artemchep.keyguard.common.usecase.GetAccounts
 import com.artemchep.keyguard.common.usecase.GetAppIcons
@@ -15,9 +17,10 @@ import com.artemchep.keyguard.common.usecase.GetConcealFields
 import com.artemchep.keyguard.common.usecase.GetOrganizations
 import com.artemchep.keyguard.common.usecase.GetProfiles
 import com.artemchep.keyguard.common.usecase.GetTotpCode
+import com.artemchep.keyguard.common.usecase.GetVaultSearchIndex
+import com.artemchep.keyguard.common.usecase.GetVaultSearchQualifierCatalog
 import com.artemchep.keyguard.common.usecase.GetWebsiteIcons
 import com.artemchep.keyguard.common.usecase.filterHiddenProfiles
-import com.artemchep.keyguard.common.util.flow.EventFlow
 import com.artemchep.keyguard.common.util.flow.persistingStateIn
 import com.artemchep.keyguard.feature.attachments.SelectableItemState
 import com.artemchep.keyguard.feature.auth.bitwarden.BitwardenLoginRoute
@@ -26,11 +29,16 @@ import com.artemchep.keyguard.feature.auth.keepass.KeePassLoginRoute
 import com.artemchep.keyguard.feature.generator.history.mapLatestScoped
 import com.artemchep.keyguard.feature.home.settings.accounts.model.AccountType
 import com.artemchep.keyguard.feature.home.vault.model.VaultItem2
-import com.artemchep.keyguard.feature.home.vault.screen.IndexedModel
-import com.artemchep.keyguard.feature.home.vault.screen.buildSearchTokens
-import com.artemchep.keyguard.feature.home.vault.screen.search
 import com.artemchep.keyguard.feature.home.vault.screen.toVaultListItem
-import com.artemchep.keyguard.feature.home.vault.search.IndexedText
+import com.artemchep.keyguard.feature.home.vault.search.engine.VAULT_SEARCH_SURFACE_QUICK_SEARCH
+import com.artemchep.keyguard.feature.home.vault.search.engine.VaultSearchTraceSink
+import com.artemchep.keyguard.feature.home.vault.search.engine.formatSortForTrace
+import com.artemchep.keyguard.feature.home.vault.search.engine.vaultSearchFilteredItemsFlow
+import com.artemchep.keyguard.feature.home.vault.search.engine.vaultSearchQueryHandle
+import com.artemchep.keyguard.feature.home.vault.search.engine.vaultSearchTraceFlow
+import com.artemchep.keyguard.feature.home.vault.search.query.applyVaultSearchQualifierSuggestion
+import com.artemchep.keyguard.feature.home.vault.search.query.highlight.QueryHighlighting
+import com.artemchep.keyguard.feature.home.vault.search.query.highlight.VaultSearchQueryHighlighter
 import com.artemchep.keyguard.feature.home.vault.search.sort.AlphabeticalSort
 import com.artemchep.keyguard.feature.navigation.NavigationIntent
 import com.artemchep.keyguard.feature.navigation.keyboard.KeyShortcut
@@ -40,7 +48,7 @@ import com.artemchep.keyguard.feature.navigation.state.RememberStateFlowScope
 import com.artemchep.keyguard.feature.navigation.state.TranslatorScope
 import com.artemchep.keyguard.feature.navigation.state.copy
 import com.artemchep.keyguard.feature.navigation.state.produceScreenState
-import com.artemchep.keyguard.feature.search.search.SEARCH_DEBOUNCE
+import com.artemchep.keyguard.platform.util.isRelease
 import com.artemchep.keyguard.res.Res
 import com.artemchep.keyguard.res.copy_card_number
 import com.artemchep.keyguard.res.copy_cvv_code
@@ -55,12 +63,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.shareIn
 import org.kodein.di.compose.localDI
 import org.kodein.di.direct
@@ -75,6 +83,10 @@ internal fun quickSearchScreenState(): QuickSearchState = with(localDI().direct)
         getProfiles = instance(),
         getCiphers = instance(),
         getOrganizations = instance(),
+        getVaultSearchIndex = instance(),
+        getVaultSearchQualifierCatalog = instance(),
+        searchTraceSink = instance(),
+        queryHighlighter = instance(),
         getTotpCode = instance(),
         getConcealFields = instance(),
         getAppIcons = instance(),
@@ -91,6 +103,10 @@ internal fun quickSearchScreenState(
     getProfiles: GetProfiles,
     getCiphers: GetCiphers,
     getOrganizations: GetOrganizations,
+    getVaultSearchIndex: GetVaultSearchIndex,
+    getVaultSearchQualifierCatalog: GetVaultSearchQualifierCatalog,
+    searchTraceSink: VaultSearchTraceSink,
+    queryHighlighter: VaultSearchQueryHighlighter,
     getTotpCode: GetTotpCode,
     getConcealFields: GetConcealFields,
     getAppIcons: GetAppIcons,
@@ -107,22 +123,28 @@ internal fun quickSearchScreenState(
     ),
 ) {
     val copy = copy(clipboardService)
-    val querySink = mutablePersistedFlow("query") { "" }
-    val queryState = mutableComposeState(querySink)
-    val queryFocusSink = EventFlow<Unit>()
+    val queryHandle = vaultSearchQueryHandle(
+        key = "query",
+        searchBy = com.artemchep.keyguard.feature.home.vault.VaultRoute.Args.SearchBy.ALL,
+        getVaultSearchQualifierCatalog = getVaultSearchQualifierCatalog,
+        getVaultSearchIndex = getVaultSearchIndex,
+        surface = VAULT_SEARCH_SURFACE_QUICK_SEARCH,
+        queryHighlighter = queryHighlighter,
+        sharingStarted = SharingStarted.WhileSubscribed(5000L),
+    )
     val selectedItemIdSink = mutablePersistedFlow<String?>("selected_item_id") { null }
     val selectedActionIndexSink = mutablePersistedFlow<Int?>("selected_action_index") { null }
 
     fun clearField() {
-        queryState.value = ""
+        queryHandle.queryState.value = ""
     }
 
     fun focusField() {
-        queryFocusSink.emit(Unit)
+        queryHandle.queryFocusSink.emit(Unit)
     }
 
     interceptBackPress(
-        interceptorFlow = querySink
+        interceptorFlow = queryHandle.querySink
             .map { it.isNotEmpty() }
             .distinctUntilChanged()
             .map { enabled ->
@@ -157,14 +179,7 @@ internal fun quickSearchScreenState(
         getCiphers = getCiphers,
         filter = null,
     )
-    val queryTrimmedFlow = querySink.map { it to it.trim() }
-    val queryIndexedFlow = queryTrimmedFlow
-        .debounce(SEARCH_DEBOUNCE)
-        .map { (_, queryTrimmed) ->
-            queryTrimmed
-                .takeIf { it.isNotEmpty() }
-                ?.let(IndexedText::invoke)
-        }
+    val queryTrimmedFlow = queryHandle.queryPairFlow
     val organizationsByIdFlow = getOrganizations()
         .map { organizations ->
             organizations.associateBy(DOrganization::id)
@@ -226,12 +241,7 @@ internal fun quickSearchScreenState(
                             null
                         },
                     )
-                    val indexed = buildSearchTokens(secret)
-                    IndexedModel(
-                        model = item,
-                        indexedText = IndexedText(item.title.text),
-                        indexedOther = indexed,
-                    )
+                    item
                 }
                 .sortedWith(quickSearchComparator)
                 .toList()
@@ -239,46 +249,78 @@ internal fun quickSearchScreenState(
         .flowOn(Dispatchers.Default)
         .shareIn(this, SharingStarted.WhileSubscribed(5000L), replay = 1)
 
-    val filteredItemsFlow = itemsFlow
-        .combine(queryIndexedFlow) { items, query ->
-            items to query
-        }
-        .mapLatest { (items, query) ->
-            if (query == null) {
-                items.map(IndexedModel<VaultItem2.Item>::model)
-            } else {
-                items.search(
-                    query = query,
-                    highlightBackgroundColor = highlightBackgroundColor,
-                    highlightContentColor = highlightContentColor,
-                )
-            }
-        }
+    val filteredItemsFlow = vaultSearchFilteredItemsFlow(
+        itemsFlow = itemsFlow,
+        searchContextFlow = queryHandle.searchContextFlow,
+        highlightBackgroundColor = highlightBackgroundColor,
+        highlightContentColor = highlightContentColor,
+    )
         .flowOn(Dispatchers.Default)
+        .shareIn(this, SharingStarted.WhileSubscribed(5000L), replay = 1)
     val filteredItemsNullableFlow = filteredItemsFlow
         .nullable()
         .persistingStateIn(this, SharingStarted.WhileSubscribed(), null)
 
-    combine(
+    if (!isRelease) vaultSearchTraceFlow(
+        surface = VAULT_SEARCH_SURFACE_QUICK_SEARCH,
+        debouncedQueryFlow = queryHandle.debouncedQueryFlow,
+        searchContextFlow = queryHandle.searchContextFlow,
+        rawItemCountFlow = hiddenCiphersFlow.map { it.size },
+        routeFilteredCountFlow = itemsFlow.map { it.size },
+        activeSortFlow = flowOf(
+            formatSortForTrace(
+                sortId = AlphabeticalSort.id,
+                favorites = true,
+            ),
+        ),
+        finalResultCountFlow = filteredItemsFlow.map { it.size },
+    )
+        .onEach { event ->
+            event?.let(searchTraceSink::surface)
+        }
+        .launchIn(this)
+
+    val hasAccountsFlow = getAccounts()
+        .map { it.isNotEmpty() }
+        .distinctUntilChanged()
+    val contentInputFlow = combine(
         filteredItemsNullableFlow,
         queryTrimmedFlow,
-        getAccounts()
-            .map { it.isNotEmpty() }
-            .distinctUntilChanged(),
+        queryHandle.queryHighlightingFlow,
+        queryHandle.queryQualifierSuggestionFlow,
+        hasAccountsFlow,
+    ) { items, queryPair, queryHighlighting, queryQualifierSuggestion, hasAccounts ->
+        QuickSearchContentInput(
+            items = items,
+            queryPair = queryPair,
+            queryHighlighting = queryHighlighting,
+            queryQualifierSuggestion = queryQualifierSuggestion,
+            hasAccounts = hasAccounts,
+        )
+    }
+    val selectionFlow = combine(
         selectedItemIdSink,
         selectedActionIndexSink,
-    ) { items, (query, _), hasAccounts, selectedItemId, selectedActionIndex ->
+    ) { selectedItemId, selectedActionIndex ->
+        selectedItemId to selectedActionIndex
+    }
+    combine(
+        contentInputFlow,
+        selectionFlow,
+    ) { input, selection ->
+        val (selectedItemId, selectedActionIndex) = selection
+        val (query, _) = input.queryPair
         val content = quickSearchContent(
-            results = items,
-            hasAccounts = hasAccounts,
-            onAddAccount = quickSearchAddAccountAction(hasAccounts),
+            results = input.items,
+            hasAccounts = input.hasAccounts,
+            onAddAccount = quickSearchAddAccountAction(input.hasAccounts),
         )
-        val queryField = if (hasAccounts) {
+        val queryField = if (input.hasAccounts) {
             TextFieldModel2(
-                state = queryState,
+                state = queryHandle.queryState,
                 text = query,
-                focusFlow = queryFocusSink,
-                onChange = queryState::value::set,
+                focusFlow = queryHandle.queryFocusSink,
+                onChange = queryHandle.queryState::value::set,
             )
         } else {
             TextFieldModel2(
@@ -298,6 +340,21 @@ internal fun quickSearchScreenState(
 
         QuickSearchState(
             query = queryField,
+            queryHighlighting = if (input.hasAccounts) {
+                input.queryHighlighting
+            } else {
+                QueryHighlighting.Empty
+            },
+            queryQualifierSuggestion = input.queryQualifierSuggestion?.text,
+            onQueryQualifierSuggestion = input.queryQualifierSuggestion
+                ?.let { suggestion ->
+                    { rawQuery ->
+                        applyVaultSearchQualifierSuggestion(
+                            query = rawQuery,
+                            suggestion = suggestion,
+                        )
+                    }
+                },
             results = content.results
                 .map { item ->
                     QuickSearchResultItem(
@@ -346,6 +403,14 @@ private data class QuickSearchConfig(
     val concealFields: Boolean,
     val appIcons: Boolean,
     val websiteIcons: Boolean,
+)
+
+private data class QuickSearchContentInput(
+    val items: List<VaultItem2.Item>?,
+    val queryPair: Pair<String, String>,
+    val queryHighlighting: QueryHighlighting,
+    val queryQualifierSuggestion: com.artemchep.keyguard.feature.home.vault.search.query.VaultSearchQualifierSuggestion?,
+    val hasAccounts: Boolean,
 )
 
 private data class QuickSearchSelectionState(
@@ -415,16 +480,16 @@ private suspend fun TranslatorScope.quickSearchSelectionState(
     )
 }
 
-private val quickSearchComparator = Comparator<IndexedModel<VaultItem2.Item>> { a, b ->
+private val quickSearchComparator = Comparator<VaultItem2.Item> { a, b ->
     var result = 0
     if (result == 0) {
-        result = -compareValues(a.model.favourite, b.model.favourite)
+        result = -compareValues(a.favourite, b.favourite)
     }
     if (result == 0) {
-        result = AlphabeticalSort.compare(a.model, b.model)
+        result = AlphabeticalSort.compare(a, b)
     }
     if (result == 0) {
-        result = a.model.id.compareTo(b.model.id)
+        result = a.id.compareTo(b.id)
     }
     result
 }

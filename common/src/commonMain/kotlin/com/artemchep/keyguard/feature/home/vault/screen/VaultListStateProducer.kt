@@ -30,7 +30,6 @@ import com.artemchep.keyguard.common.io.attempt
 import com.artemchep.keyguard.common.io.bind
 import com.artemchep.keyguard.common.io.launchIn
 import com.artemchep.keyguard.common.io.nullable
-import com.artemchep.keyguard.common.io.parallelSearch
 import com.artemchep.keyguard.common.model.AccountTask
 import com.artemchep.keyguard.common.model.AutofillTarget
 import com.artemchep.keyguard.common.model.DFilter
@@ -61,6 +60,8 @@ import com.artemchep.keyguard.common.usecase.GetProfiles
 import com.artemchep.keyguard.common.usecase.GetSuggestions
 import com.artemchep.keyguard.common.usecase.GetTags
 import com.artemchep.keyguard.common.usecase.GetTotpCode
+import com.artemchep.keyguard.common.usecase.GetVaultSearchIndex
+import com.artemchep.keyguard.common.usecase.GetVaultSearchQualifierCatalog
 import com.artemchep.keyguard.common.usecase.GetWebsiteIcons
 import com.artemchep.keyguard.common.usecase.PasskeyTargetCheck
 import com.artemchep.keyguard.common.usecase.QueueSyncAll
@@ -93,10 +94,18 @@ import com.artemchep.keyguard.feature.home.vault.add.LeAddRoute
 import com.artemchep.keyguard.feature.home.vault.component.obscurePassword
 import com.artemchep.keyguard.feature.home.vault.model.SortItem
 import com.artemchep.keyguard.feature.home.vault.model.VaultItem2
-import com.artemchep.keyguard.feature.home.vault.search.IndexedText
+import com.artemchep.keyguard.feature.home.vault.search.engine.VAULT_SEARCH_SURFACE_VAULT_LIST
+import com.artemchep.keyguard.feature.home.vault.search.engine.VaultSearchContext
+import com.artemchep.keyguard.feature.home.vault.search.engine.VaultSearchTraceSink
+import com.artemchep.keyguard.feature.home.vault.search.engine.formatSortForTrace
+import com.artemchep.keyguard.feature.home.vault.search.engine.vaultSearchQueryHandle
+import com.artemchep.keyguard.feature.home.vault.search.engine.vaultSearchTraceFlow
 import com.artemchep.keyguard.feature.home.vault.search.filter.FilterHolder
-import com.artemchep.keyguard.feature.home.vault.search.find
-import com.artemchep.keyguard.feature.home.vault.search.findAlike
+import com.artemchep.keyguard.feature.home.vault.search.query.VaultSearchQualifierSuggestion
+import com.artemchep.keyguard.feature.home.vault.search.query.applyVaultSearchQualifierSuggestion
+import com.artemchep.keyguard.feature.home.vault.search.query.compiler.CompiledQueryPlan
+import com.artemchep.keyguard.feature.home.vault.search.query.highlight.QueryHighlighting
+import com.artemchep.keyguard.feature.home.vault.search.query.highlight.VaultSearchQueryHighlighter
 import com.artemchep.keyguard.feature.home.vault.search.sort.AlphabeticalSort
 import com.artemchep.keyguard.feature.home.vault.search.sort.LastCreatedSort
 import com.artemchep.keyguard.feature.home.vault.search.sort.LastModifiedSort
@@ -118,11 +127,11 @@ import com.artemchep.keyguard.feature.navigation.state.copy
 import com.artemchep.keyguard.feature.navigation.state.onClick
 import com.artemchep.keyguard.feature.navigation.state.produceScreenState
 import com.artemchep.keyguard.feature.passkeys.PasskeysCredentialViewRoute
-import com.artemchep.keyguard.feature.search.search.SEARCH_DEBOUNCE
 import com.artemchep.keyguard.leof
 import com.artemchep.keyguard.platform.parcelize.LeParcelable
 import com.artemchep.keyguard.platform.parcelize.LeParcelize
 import com.artemchep.keyguard.platform.recordException
+import com.artemchep.keyguard.platform.util.isRelease
 import com.artemchep.keyguard.res.Res
 import com.artemchep.keyguard.res.*
 import com.artemchep.keyguard.ui.ContextItemBuilder
@@ -140,7 +149,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flowOf
@@ -157,7 +165,6 @@ import org.kodein.di.DirectDI
 import org.kodein.di.compose.localDI
 import org.kodein.di.direct
 import org.kodein.di.instance
-import kotlin.time.measureTimedValue
 
 @LeParcelize
 data class OhOhOh(
@@ -201,7 +208,7 @@ data class ComparatorHolder(
 }
 
 @Composable
-fun vaultListScreenState(
+internal fun vaultListScreenState(
     args: VaultRoute.Args,
     highlightBackgroundColor: Color,
     highlightContentColor: Color,
@@ -225,6 +232,10 @@ fun vaultListScreenState(
         getTags = instance(),
         getCollections = instance(),
         getOrganizations = instance(),
+        getVaultSearchIndex = instance(),
+        getVaultSearchQualifierCatalog = instance(),
+        searchTraceSink = instance(),
+        queryHighlighter = instance(),
         getTotpCode = instance(),
         getConcealFields = instance(),
         getAppIcons = instance(),
@@ -242,7 +253,7 @@ fun vaultListScreenState(
 }
 
 @Composable
-fun vaultListScreenState(
+internal fun vaultListScreenState(
     directDI: DirectDI,
     args: VaultRoute.Args,
     highlightBackgroundColor: Color,
@@ -259,6 +270,10 @@ fun vaultListScreenState(
     getTags: GetTags,
     getCollections: GetCollections,
     getOrganizations: GetOrganizations,
+    getVaultSearchIndex: GetVaultSearchIndex,
+    getVaultSearchQualifierCatalog: GetVaultSearchQualifierCatalog,
+    searchTraceSink: VaultSearchTraceSink,
+    queryHighlighter: VaultSearchQueryHighlighter,
     getTotpCode: GetTotpCode,
     getConcealFields: GetConcealFields,
     getAppIcons: GetAppIcons,
@@ -290,7 +305,6 @@ fun vaultListScreenState(
     }
 
     val fffFilter = args.filter ?: DFilter.All
-    println(fffFilter)
 //    val fffAccountId = DFilter
 //        .findOne<DFilter.ById>(fffFilter) { f ->
 //            f.what == DFilter.ById.What.ACCOUNT
@@ -357,22 +371,28 @@ fun vaultListScreenState(
         filter = args.filter,
     )
 
-    val querySink = mutablePersistedFlow("query") { "" }
-    val queryState = mutableComposeState(querySink)
-    val queryFocusSink = EventFlow<Unit>()
+    val queryHandle = vaultSearchQueryHandle(
+        key = "query",
+        searchBy = args.searchBy,
+        getVaultSearchQualifierCatalog = getVaultSearchQualifierCatalog,
+        getVaultSearchIndex = getVaultSearchIndex,
+        surface = VAULT_SEARCH_SURFACE_VAULT_LIST,
+        queryHighlighter = queryHighlighter,
+        sharingStarted = SharingStarted.WhileSubscribed(5000L),
+    )
 
     fun clearField() {
-        queryState.value = ""
+        queryHandle.queryState.value = ""
     }
 
     fun focusField() {
-        queryFocusSink.emit(Unit)
+        queryHandle.queryFocusSink.emit(Unit)
     }
 
     // Intercept the back button while the
     // search query is not empty.
     interceptBackPress(
-        interceptorFlow = querySink
+        interceptorFlow = queryHandle.querySink
             .map { it.isNotEmpty() }
             .distinctUntilChanged()
             .map { enabled ->
@@ -1005,12 +1025,12 @@ fun vaultListScreenState(
 
                                 is AppMode.PickPasskey ->
                                     return@toVaultListItem VaultItem2.Item.Action.Go(
-                                        onClick = cipherSink::emit.partially1(secret),
+                                        onClick = { cipherSink.emit(secret) },
                                     )
 
                                 is AppMode.Main ->
                                     return@toVaultListItem VaultItem2.Item.Action.Go(
-                                        onClick = cipherSink::emit.partially1(secret),
+                                        onClick = { cipherSink.emit(secret) },
                                     )
 
                                 is AppMode.QuickSearch ->
@@ -1071,19 +1091,14 @@ fun vaultListScreenState(
                             }
                         },
                     )
-                    val indexed = buildSearchTokens(secret)
-                    IndexedModel(
-                        model = item,
-                        indexedText = IndexedText(item.title.text),
-                        indexedOther = indexed,
-                    )
+                    item
                 }
                 .run {
                     if (args.filter != null) {
-                        val ciphers = map { it.model.source }
+                        val ciphers = map { it.source }
                         val predicate = args.filter.prepare(directDI, ciphers)
                         this
-                            .filter { predicate(it.model.source) }
+                            .filter { predicate(it.source) }
                     } else {
                         this
                     }
@@ -1281,16 +1296,9 @@ fun vaultListScreenState(
             out
         }
 
-    val queryTrimmedFlow = querySink.map { it to it.trim() }
-
-    val queryIndexedFlow = queryTrimmedFlow
-        .debounce(SEARCH_DEBOUNCE)
-        .map { (_, queryTrimmed) ->
-            if (queryTrimmed.isEmpty()) return@map null
-            IndexedText(
-                text = queryTrimmed,
-            )
-        }
+    val queryTrimmedFlow = queryHandle.queryPairFlow
+    val querySearchContextFlow = queryHandle.searchContextFlow
+    val queryRevisionFlow = queryHandle.queryRevisionFlow
 
     data class Rev<T>(
         val count: Int,
@@ -1299,12 +1307,12 @@ fun vaultListScreenState(
     )
 
     val autofillTarget = mode.autofillTarget
-    val ciphersFilteredFlow = hahah(
+    val ciphersFilteredStateFlow = hahah(
         directDI = directDI,
         ciphersFlow = ciphersFlow,
         orderFlow = sortSink,
         filterFlow = filterResult.filterFlow,
-        queryFlow = queryIndexedFlow,
+        querySearchContextFlow = querySearchContextFlow,
         autofillTarget = autofillTarget,
         equivalentDomainsBuilderFactory = equivalentDomainsBuilderFactory,
         getSuggestions = getSuggestions,
@@ -1312,6 +1320,9 @@ fun vaultListScreenState(
         highlightBackgroundColor = highlightBackgroundColor,
         highlightContentColor = highlightContentColor,
     )
+        .shareIn(this, SharingStarted.WhileSubscribed(), replay = 1)
+
+    val ciphersFilteredFlow = ciphersFilteredStateFlow
         .map {
             val keepOtp = it.filterConfig?.filter
                 ?.let {
@@ -1373,14 +1384,35 @@ fun vaultListScreenState(
             Rev(
                 count = it.count,
                 list = l,
-                revision = (it.filterConfig?.id ?: 0) xor (
-                        it.queryConfig?.text?.hashCode()
-                            ?: 0
-                        ) xor (it.orderConfig?.hashCode() ?: 0),
+                revision = (it.filterConfig?.id ?: 0) xor
+                        (it.queryConfig?.id ?: 0) xor
+                        (it.orderConfig?.hashCode() ?: 0),
             )
         }
         .flowOn(Dispatchers.Default)
         .shareIn(this, SharingStarted.WhileSubscribed(), replay = 1)
+
+    if (!isRelease) vaultSearchTraceFlow(
+        surface = VAULT_SEARCH_SURFACE_VAULT_LIST,
+        debouncedQueryFlow = queryHandle.debouncedQueryFlow,
+        searchContextFlow = querySearchContextFlow,
+        rawItemCountFlow = ciphersRawFlow.map { it.size },
+        routeFilteredCountFlow = ciphersFlow.map { it.size },
+        filterFilteredCountFlow = ciphersFilteredStateFlow.map { it.preQueryCount },
+        preferredCountFlow = ciphersFilteredStateFlow.map { it.preQueryPreferredCount },
+        activeSortFlow = sortSink.map { sort ->
+            formatSortForTrace(
+                sortId = sort.comparator.id,
+                reversed = sort.reversed,
+                favorites = sort.favourites,
+            )
+        },
+        finalResultCountFlow = ciphersFilteredStateFlow.map { it.count },
+    )
+        .onEach { event ->
+            event?.let(searchTraceSink::surface)
+        }
+        .launchIn(this)
 
     val deeplinkCustomFilterFlow = if (args.main) {
         val customFilterKey = DeeplinkService.CUSTOM_FILTER
@@ -1404,7 +1436,7 @@ fun vaultListScreenState(
         accountFlow = getAccounts(),
         profileFlow = getProfiles(),
         cipherGetter = {
-            it.model.source
+            it.source
         },
         cipherFlow = ciphersFlow,
         folderGetter = ::identity,
@@ -1521,17 +1553,36 @@ fun vaultListScreenState(
         // initial state as fast as we can.
         .nullable()
         .persistingStateIn(this, SharingStarted.WhileSubscribed(), null)
+    val queryStateFlow = combine(
+        queryTrimmedFlow,
+        queryRevisionFlow,
+        queryHandle.queryHighlightingFlow,
+        queryHandle.queryQualifierSuggestionFlow,
+    ) { queryPair, queryRevision, queryHighlighting, queryQualifierSuggestion ->
+        QueryStateData(
+            queryPair = queryPair,
+            queryRevision = queryRevision,
+            queryHighlighting = queryHighlighting,
+            queryQualifierSuggestion = queryQualifierSuggestion,
+        )
+    }
     combine(
         itemsNullableFlow,
         filterListFlow,
         comparatorsListFlow
             .combine(sortSink) { a, b -> a to b },
-        queryTrimmedFlow,
+        queryStateFlow,
         getAccounts()
             .map { it.isNotEmpty() }
             .distinctUntilChanged(),
-    ) { itemsContent, filters, (comparators, sort), (query, queryTrimmed), hasAccounts ->
-        val revision = filters.rev xor queryTrimmed.hashCode() xor sort.hashCode()
+    ) { itemsContent, filters, comparatorState, queryStateData, hasAccounts ->
+        val (comparators, sort) = comparatorState
+        val queryPair = queryStateData.queryPair
+        val queryRevision = queryStateData.queryRevision
+        val queryHighlighting = queryStateData.queryHighlighting
+        val queryQualifierSuggestion = queryStateData.queryQualifierSuggestion
+        val (query, queryTrimmed) = queryPair
+        val revision = filters.rev xor queryRevision xor sort.hashCode()
         val content = if (hasAccounts) {
             itemsContent
                 ?: VaultListState.Content.Skeleton
@@ -1554,10 +1605,10 @@ fun vaultListScreenState(
             // We want to let the user search while the items
             // are still loading.
             TextFieldModel2(
-                state = queryState,
+                state = queryHandle.queryState,
                 text = query,
-                focusFlow = queryFocusSink,
-                onChange = queryState::value::set,
+                focusFlow = queryHandle.queryFocusSink,
+                onChange = queryHandle.queryState::value::set,
             )
         } else {
             TextFieldModel2(
@@ -1635,6 +1686,21 @@ fun vaultListScreenState(
         VaultListState(
             revision = revision,
             query = queryField,
+            queryHighlighting = if (content !is VaultListState.Content.AddAccount) {
+                queryHighlighting
+            } else {
+                QueryHighlighting.Empty
+            },
+            queryQualifierSuggestion = queryQualifierSuggestion?.text,
+            onQueryQualifierSuggestion = queryQualifierSuggestion
+                ?.let { suggestion ->
+                    { rawQuery ->
+                        applyVaultSearchQualifierSuggestion(
+                            query = rawQuery,
+                            suggestion = suggestion,
+                        )
+                    }
+                },
             filters = filters.items,
             sort = comparators
                 .takeIf { queryTrimmed.isEmpty() }
@@ -1701,180 +1767,22 @@ fun vaultListScreenState(
     }
 }
 
-internal data class SearchToken(
-    val priority: Float,
-    val tokens: List<String>,
-) {
-    companion object {
-        operator fun invoke(
-            priority: Float,
-            value: String,
-        ) = SearchToken(
-            priority = priority,
-            tokens = value.lowercase().split(" "),
-        )
-    }
-}
-
-internal fun buildSearchTokens(
-    secret: DSecret,
-): List<SearchToken> {
-    val indexed = mutableListOf<SearchToken>()
-    if (secret.login != null) {
-        // Make username searchable
-        if (secret.login.username != null) {
-            indexed += SearchToken(
-                priority = 1f,
-                value = secret.login.username,
-            )
-        }
-        // Make password searchable
-        if (!secret.reprompt && secret.login.password != null) {
-            indexed += SearchToken(
-                priority = 0.5f,
-                value = secret.login.password,
-            )
-        }
-        secret.login.fido2Credentials.forEach {
-            if (it.userDisplayName != null) {
-                indexed += SearchToken(
-                    priority = 0.8f,
-                    value = it.userDisplayName,
-                )
-            }
-            indexed += SearchToken(
-                priority = 0.5f,
-                value = it.rpId,
-            )
-        }
-    }
-    if (secret.card != null) {
-        // Make card holder name &
-        // card brand searchable
-        if (secret.card.cardholderName != null) {
-            indexed += SearchToken(
-                priority = 1f,
-                value = secret.card.cardholderName,
-            )
-        }
-        if (secret.card.brand != null) {
-            indexed += SearchToken(
-                priority = 0.5f,
-                value = secret.card.brand,
-            )
-        }
-        if (!secret.reprompt && secret.card.number != null) {
-            indexed += SearchToken(
-                priority = 0.5f,
-                value = secret.card.number,
-            )
-        }
-    }
-    if (secret.identity != null) {
-        // Name
-        if (secret.identity.firstName != null) {
-            indexed += SearchToken(
-                priority = 1f,
-                value = secret.identity.firstName,
-            )
-        }
-        if (secret.identity.middleName != null) {
-            indexed += SearchToken(
-                priority = 0.5f,
-                value = secret.identity.middleName,
-            )
-        }
-        if (secret.identity.lastName != null) {
-            indexed += SearchToken(
-                priority = 1f,
-                value = secret.identity.lastName,
-            )
-        }
-        // Contacts
-        if (secret.identity.email != null) {
-            indexed += SearchToken(
-                priority = 1f,
-                value = secret.identity.email,
-            )
-        }
-        if (secret.identity.phone != null) {
-            indexed += SearchToken(
-                priority = 0.5f,
-                value = secret.identity.phone,
-            )
-        }
-        if (secret.identity.username != null) {
-            indexed += SearchToken(
-                priority = 1f,
-                value = secret.identity.username,
-            )
-        }
-    }
-    if (!secret.reprompt && secret.notes.isNotBlank()) {
-        indexed += SearchToken(
-            priority = 0.8f,
-            value = secret.notes,
-        )
-    }
-    secret.uris.forEach { uri ->
-        @Suppress("MoveVariableDeclarationIntoWhen")
-        val matchType = uri.match ?: DSecret.Uri.MatchType.default
-        val priority = when (matchType) {
-            DSecret.Uri.MatchType.Domain -> 0.5f
-            DSecret.Uri.MatchType.Host -> 0.5f
-            DSecret.Uri.MatchType.StartsWith -> 0.5f
-            DSecret.Uri.MatchType.Exact -> 0.5f
-            DSecret.Uri.MatchType.RegularExpression -> 0f // can't type regex...
-            DSecret.Uri.MatchType.Never -> 0.1f
-        }
-        if (priority > 0f) {
-            indexed += SearchToken(
-                priority = priority,
-                value = uri.uri,
-            )
-        }
-    }
-    secret.fields.forEach { field ->
-        val priority = when (field.type) {
-            DSecret.Field.Type.Text -> 0.5f
-            DSecret.Field.Type.Hidden -> 0f
-            DSecret.Field.Type.Boolean -> 0f
-            DSecret.Field.Type.Linked -> 0f
-        }
-        if (priority > 0f && field.value != null) {
-            indexed += SearchToken(
-                priority = priority,
-                value = field.value,
-            )
-        }
-    }
-    return indexed
-}
-
-internal class IndexedModel<T>(
-    val model: T,
-    val indexedText: IndexedText,
-    val indexedOther: List<SearchToken>,
-)
-
-private data class FilteredModel<T>(
-    val model: T,
-    val score: Float,
-    val result: IndexedText.FindResult?,
-)
-
-private data class FilteredCiphers<T>(
-    val list: List<T>,
-    val revision: Int,
+private data class QueryStateData(
+    val queryPair: Pair<String, String>,
+    val queryRevision: Int,
+    val queryHighlighting: QueryHighlighting,
+    val queryQualifierSuggestion: VaultSearchQualifierSuggestion?,
 )
 
 private data class FilteredBoo<T>(
     val count: Int,
     val list: List<T>,
     val preferredList: List<T>?,
+    val preQueryCount: Int = count,
+    val preQueryPreferredCount: Int? = preferredList?.size,
     val orderConfig: ComparatorHolder? = null,
     val filterConfig: FilterHolder? = null,
-    val queryConfig: IndexedText? = null,
+    val queryConfig: CompiledQueryPlan? = null,
 )
 
 private data class Preferences(
@@ -1884,10 +1792,10 @@ private data class Preferences(
 
 private fun hahah(
     directDI: DirectDI,
-    ciphersFlow: Flow<List<IndexedModel<VaultItem2.Item>>>,
+    ciphersFlow: Flow<List<VaultItem2.Item>>,
     orderFlow: Flow<ComparatorHolder>,
     filterFlow: Flow<FilterHolder>,
-    queryFlow: Flow<IndexedText?>,
+    querySearchContextFlow: Flow<VaultSearchContext?>,
     autofillTarget: AutofillTarget?,
     equivalentDomainsBuilderFactory: EquivalentDomainsBuilderFactory,
     getSuggestions: GetSuggestions<Any?>,
@@ -1900,21 +1808,16 @@ private fun hahah(
             getSuggestions(
                 items,
                 Getter {
-                    val m = it as IndexedModel<VaultItem2.Item>
-                    m.model.source
+                    val item = it as VaultItem2.Item
+                    item.source
                 },
                 autofillTarget,
                 equivalentDomainsBuilderFactory,
             )
-                .bind().let { it as List<IndexedModel<VaultItem2.Item>> }
+                .bind().let { it as List<VaultItem2.Item> }
                 .map { item ->
-                    val newModel = item.model.copy(
-                        id = "preferred." + item.model.id,
-                    )
-                    IndexedModel(
-                        model = newModel,
-                        indexedText = item.indexedText,
-                        indexedOther = emptyList(),
+                    item.copy(
+                        id = "preferred." + item.id,
                     )
                 }
         } else {
@@ -1924,19 +1827,19 @@ private fun hahah(
             count = items.size,
             list = items,
             preferredList = preferredList,
+            preQueryCount = items.size,
+            preQueryPreferredCount = preferredList?.size,
         )
     }
     .combine(
         flow = orderFlow
             .map { orderConfig ->
-                val orderComparator = Comparator<IndexedModel<VaultItem2.Item>> { a, b ->
-                    val aModel = a.model
-                    val bModel = b.model
+                val orderComparator = Comparator<VaultItem2.Item> { aModel, bModel ->
 
                     var r = 0
                     if (r == 0 && orderConfig.favourites) {
                         // Place favourite items on top of the list.
-                        r = -compareValues(a.model.favourite, b.model.favourite)
+                        r = -compareValues(aModel.favourite, bModel.favourite)
                     }
                     if (r == 0) {
                         r = orderConfig.comparator.compare(aModel, bModel)
@@ -1971,53 +1874,68 @@ private fun hahah(
         val filteredAllItems = state
             .list
             .run {
-                val ciphers = map { it.model.source }
+                val ciphers = map { it.source }
                 val predicate = filterConfig.filter.prepare(directDI, ciphers)
-                filter { predicate(it.model.source) }
+                filter { predicate(it.source) }
             }
         val filteredPreferredItems = state
             .preferredList
             ?.run {
-                val ciphers = map { it.model.source }
+                val ciphers = map { it.source }
                 val predicate = filterConfig.filter.prepare(directDI, ciphers)
-                filter { predicate(it.model.source) }
+                filter { predicate(it.source) }
             }
         state.copy(
             list = filteredAllItems,
             preferredList = filteredPreferredItems,
+            preQueryCount = filteredAllItems.size,
+            preQueryPreferredCount = filteredPreferredItems?.size,
             filterConfig = filterConfig,
         )
     }
-    .combine(queryFlow) { a, b -> a to b } // i want to use map latest
-    .mapLatest { (state, query) ->
-        if (query == null) {
+    .combine(querySearchContextFlow) { state, queryContext ->
+        state to queryContext
+    }
+    .mapLatest { (state, queryContext) ->
+        if (queryContext == null) {
             return@mapLatest FilteredBoo(
                 count = state.list.size,
-                list = state.list.map { it.model },
-                preferredList = state.preferredList?.map { it.model },
+                list = state.list,
+                preferredList = state.preferredList,
+                preQueryCount = state.preQueryCount,
+                preQueryPreferredCount = state.preQueryPreferredCount,
                 orderConfig = state.orderConfig,
                 filterConfig = state.filterConfig,
-                queryConfig = state.queryConfig,
+                queryConfig = null,
             )
         }
 
-        val filteredAllItems = state.list.search(
-            query = query,
+        val searchIndex = queryContext.searchIndex
+        val queryPlan = queryContext.queryPlan
+        val filteredAllItems = searchIndex.evaluate(
+            plan = queryPlan,
+            candidates = state.list,
             highlightBackgroundColor = highlightBackgroundColor,
             highlightContentColor = highlightContentColor,
         )
-        val filteredPreferredItems = state.preferredList?.search(
-            query = query,
-            highlightBackgroundColor = highlightBackgroundColor,
-            highlightContentColor = highlightContentColor,
-        )
+        val filteredPreferredItems = state.preferredList
+            ?.let { preferredItems ->
+                searchIndex.evaluate(
+                    plan = queryPlan,
+                    candidates = preferredItems,
+                    highlightBackgroundColor = highlightBackgroundColor,
+                    highlightContentColor = highlightContentColor,
+                )
+            }
         FilteredBoo(
             count = filteredAllItems.size,
             list = filteredAllItems,
             preferredList = filteredPreferredItems,
+            preQueryCount = state.preQueryCount,
+            preQueryPreferredCount = state.preQueryPreferredCount,
             orderConfig = state.orderConfig,
             filterConfig = state.filterConfig,
-            queryConfig = query,
+            queryConfig = queryPlan,
         )
     }
     .map { state ->
@@ -2027,7 +1945,7 @@ private fun hahah(
         val decorator = when {
             // Search does not guarantee meaningful order that we can
             // show in the section.
-            state.queryConfig != null -> ItemDecoratorNone
+            state.queryConfig?.hasScoringClauses == true -> ItemDecoratorNone
             orderConfig?.comparator is AlphabeticalSort &&
                     // it looks ugly on small lists
                     state.list.size >= AlphabeticalSortMinItemsSize ->
@@ -2198,70 +2116,4 @@ private class PasswordStrengthDecorator : Decorator {
             text = TextHolder.Res(score.formatH()),
         )
     }
-}
-
-internal suspend fun List<IndexedModel<VaultItem2.Item>>.search(
-    query: IndexedText,
-    highlightBackgroundColor: Color,
-    highlightContentColor: Color,
-) = kotlin.run {
-    // Fast path if there's nothing to search from.
-    if (isEmpty()) {
-        return@run this
-            .map {
-                it.model
-            }
-    }
-
-    val queryComponents = query
-        .components
-        .map { it.lowercase }
-    val timedValue = measureTimedValue {
-        parallelSearch {
-            val q = it.indexedOther
-                .fold(0f) { y, x ->
-                    y + findAlike(
-                        source = x.tokens,
-                        query = queryComponents,
-                    )
-                }
-                .div(it.indexedOther.size.coerceAtLeast(1))
-            val r = it.indexedText.find(
-                query = query,
-                colorBackground = highlightBackgroundColor,
-                colorContent = highlightContentColor,
-            )
-            if (r == null && q <= 0.0001f) {
-                return@parallelSearch null
-            }
-            // Slightly prefer favorite items, but by a very small
-            // margin. The idea is that favorite items are show on top
-            // anyway, so if a user is using the search, then he probably
-            // searches for something other than the favorite items.
-            val favoriteScoreModifier = if (it.model.favourite) 1.35f else 1f
-            val finalScore = if (r != null) {
-                r.score + r.score * q / 10f
-            } else {
-                q / 15f
-            } * favoriteScoreModifier
-            FilteredModel(
-                model = it.model,
-                score = finalScore,
-                result = r,
-            )
-        }
-            .sortedWith(
-                compareBy(
-                    { -it.score },
-                ),
-            )
-            .map {
-                it.result
-                    ?: return@map it.model
-                // Replace the origin text with the one with
-                // search decor applied to it.
-                it.model.copy(title = it.result.highlightedText)
-            }
-    }
-    timedValue.value
 }
