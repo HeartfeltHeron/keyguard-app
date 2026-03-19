@@ -1,6 +1,8 @@
 import com.codingfeline.buildkonfig.compiler.FieldSpec.Type.INT
 import com.codingfeline.buildkonfig.compiler.FieldSpec.Type.STRING
 import org.gradle.api.tasks.testing.Test
+import org.gradle.api.tasks.testing.logging.TestExceptionFormat
+import org.gradle.api.tasks.testing.logging.TestLogEvent
 import tasks.GenerateResHashesTask
 import tasks.GenerateResLocaleConfigKtTask
 import tasks.GenerateResLocaleConfigResTask
@@ -308,6 +310,46 @@ kotlin.compilerOptions.freeCompilerArgs.addAll(
 )
 kotlin.sourceSets.commonMain {
     kotlin.srcDir("build/generated/ksp/metadata/commonMain/kotlin")
+}
+
+val desktopTestTask = tasks.named<Test>("desktopTest")
+val desktopTestClassesTask = tasks.named("desktopTestClasses")
+
+tasks.register<Test>("vaultSearchBenchmark") {
+    group = "verification"
+    description = "Runs the vault search JVM benchmark suite from desktopTest."
+
+    dependsOn(desktopTestClassesTask)
+
+    testClassesDirs = desktopTestTask.get().testClassesDirs
+    classpath = desktopTestTask.get().classpath
+
+    maxParallelForks = 1
+    forkEvery = 0L
+    outputs.upToDateWhen { false }
+
+    systemProperty("user.language", "en")
+    systemProperty("user.country", "US")
+
+    filter {
+        includeTestsMatching("com.artemchep.keyguard.feature.home.vault.search.benchmark.*")
+        isFailOnNoMatchingTests = true
+    }
+
+    testLogging {
+        events =
+            setOf(
+                TestLogEvent.FAILED,
+                TestLogEvent.PASSED,
+                TestLogEvent.SKIPPED,
+                TestLogEvent.STANDARD_ERROR,
+                TestLogEvent.STANDARD_OUT,
+            )
+        exceptionFormat = TestExceptionFormat.FULL
+        showExceptions = true
+        showStackTraces = true
+        showStandardStreams = true
+    }
 }
 
 // See:
