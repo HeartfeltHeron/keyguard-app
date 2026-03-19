@@ -592,7 +592,7 @@ private class DefaultVaultSearchIndex(
         document: VaultSearchDocument,
         clause: CompiledHotTextClause,
     ): ClauseProbe {
-        val bestMatch =
+        val matches =
             clause.fields
                 .mapNotNull { field ->
                     val tokenization = clause.tokenizationFor(field)
@@ -703,7 +703,13 @@ private class DefaultVaultSearchIndex(
                             },
                         context = context,
                     )
-                }.maxByOrNull(ClauseProbe::score)
+                }
+        val titleTerms = matches
+            .flatMap(ClauseProbe::titleTerms)
+            .toSet()
+        val bestMatch = matches
+            .maxByOrNull(ClauseProbe::score)
+            ?.copy(titleTerms = titleTerms)
         return bestMatch ?: ClauseProbe(
             matched = false,
             matchedField = null,
@@ -900,7 +906,6 @@ private class DefaultVaultSearchIndex(
         val newText = item.text
         val newSearchContextBadge =
             context
-                ?.takeIf { titleTerms.isEmpty() }
                 ?.let {
                     VaultItem2.Item.SearchContextBadge(
                         field = it.field,

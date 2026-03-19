@@ -179,6 +179,46 @@ class VaultSearchEngineTest {
                 )
             assertEquals(1, out.size)
             assertNotEquals(item.title, out.single().title)
+            assertEquals(null, out.single().searchContextBadge)
+        }
+
+    @Test
+    fun `bare query highlights title and keeps context when non-title field wins`() =
+        runTest {
+            val secret =
+                createSecret(
+                    id = "mixed-id",
+                    name = "test",
+                    uris =
+                        listOf(
+                            DSecret.Uri(
+                                uri = "https://te.testing.tester.technical.template.telescope.com",
+                            ),
+                        ),
+                )
+            val item = createItem(secret, text = "old text")
+            val index = builder.build(listOf(secret))
+
+            val plan = index.compile("te", VaultRoute.Args.SearchBy.ALL)
+            assertNotNull(plan)
+            val out =
+                index.evaluate(
+                    plan = plan,
+                    candidates = listOf(item),
+                    highlightBackgroundColor = Color.Blue,
+                    highlightContentColor = Color.White,
+                )
+
+            assertEquals(1, out.size)
+            assertEquals(1, out.single().title.spanStyles.size)
+            assertEquals(0, out.single().title.spanStyles.single().start)
+            assertEquals(2, out.single().title.spanStyles.single().end)
+            assertEquals("old text", out.single().text)
+            assertSearchContextBadge(
+                item = out.single(),
+                field = VaultTextField.Host,
+                text = "te.testing.tester.technical.template.telescope.com",
+            )
         }
 
     @Test
