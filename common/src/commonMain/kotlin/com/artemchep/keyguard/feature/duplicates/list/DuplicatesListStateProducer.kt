@@ -44,6 +44,7 @@ import com.artemchep.keyguard.feature.home.vault.search.sort.AlphabeticalSort
 import com.artemchep.keyguard.feature.home.vault.util.cipherArchiveAction
 import com.artemchep.keyguard.feature.home.vault.util.cipherChangeNameAction
 import com.artemchep.keyguard.feature.home.vault.util.cipherChangePasswordAction
+import com.artemchep.keyguard.feature.home.vault.util.cipherChangeTagsAction
 import com.artemchep.keyguard.feature.home.vault.util.cipherCopyToAction
 import com.artemchep.keyguard.feature.home.vault.util.cipherDeleteAction
 import com.artemchep.keyguard.feature.home.vault.util.cipherDisableConfirmAccessAction
@@ -527,6 +528,10 @@ fun RememberStateFlowScope.createCipherSelectionFlow(
     if (canEdit) {
         actions += cipherChangeNameAction(
             changeCipherNameById = toolbox.changeCipherNameById,
+            ciphers = selectedCiphers,
+        )
+        actions += cipherChangeTagsAction(
+            changeCipherTagsById = toolbox.changeCipherTagsById,
             ciphers = selectedCiphers,
         )
     }

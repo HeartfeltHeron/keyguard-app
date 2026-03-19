@@ -2,6 +2,7 @@ package com.artemchep.keyguard.feature.home.vault.util
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Send
+import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Archive
@@ -35,6 +36,7 @@ import com.artemchep.keyguard.common.model.create.CreateRequest
 import com.artemchep.keyguard.common.usecase.ArchiveCipherById
 import com.artemchep.keyguard.common.usecase.ChangeCipherNameById
 import com.artemchep.keyguard.common.usecase.ChangeCipherPasswordById
+import com.artemchep.keyguard.common.usecase.ChangeCipherTagsById
 import com.artemchep.keyguard.common.usecase.CipherMerge
 import com.artemchep.keyguard.common.usecase.CopyCipherById
 import com.artemchep.keyguard.common.usecase.MoveCipherToFolderById
@@ -52,6 +54,8 @@ import com.artemchep.keyguard.feature.confirmation.folder.FolderConfirmationRout
 import com.artemchep.keyguard.feature.confirmation.organization.FolderInfo
 import com.artemchep.keyguard.feature.confirmation.organization.OrganizationConfirmationResult
 import com.artemchep.keyguard.feature.confirmation.organization.OrganizationConfirmationRoute
+import com.artemchep.keyguard.feature.confirmation.tags.TagsConfirmationResult
+import com.artemchep.keyguard.feature.confirmation.tags.TagsConfirmationRoute
 import com.artemchep.keyguard.feature.export.ExportRoute
 import com.artemchep.keyguard.feature.home.vault.add.AddRoute
 import com.artemchep.keyguard.feature.home.vault.add.LeAddRoute
@@ -716,6 +720,55 @@ fun RememberStateFlowScope.cipherChangeNameAction(
         },
     )
 }
+
+fun RememberStateFlowScope.cipherChangeTagsAction(
+    changeCipherTagsById: ChangeCipherTagsById,
+    ciphers: List<DSecret>,
+    before: (() -> Unit)? = null,
+    after: ((Boolean) -> Unit)? = null,
+) = kotlin.run {
+    val icon = icon(Icons.AutoMirrored.Outlined.Label)
+    val title = Res.string.ciphers_action_change_tags_title.wrap()
+    FlatItemAction(
+        leading = icon,
+        title = title,
+        onClick = onClick {
+            before?.invoke()
+
+            val initialTags = aggregateCipherTags(ciphers)
+            val route = registerRouteResultReceiver(
+                route = TagsConfirmationRoute(
+                    args = TagsConfirmationRoute.Args(
+                        initialTags = initialTags,
+                    ),
+                ),
+            ) { result ->
+                if (result is TagsConfirmationResult.Confirm) {
+                    val cipherIdsToTags = ciphers
+                        .associate { cipher ->
+                            cipher.id to result.tags
+                        }
+                    changeCipherTagsById(cipherIdsToTags)
+                        .launchIn(appScope)
+                }
+
+                val success = result is TagsConfirmationResult.Confirm
+                after?.invoke(success)
+            }
+            val intent = NavigationIntent.NavigateToRoute(route)
+            navigate(intent)
+        },
+    )
+}
+
+internal fun aggregateCipherTags(
+    ciphers: List<DSecret>,
+): List<String> = ciphers
+    .asSequence()
+    .flatMap { cipher -> cipher.tags }
+    .distinct()
+    .toList()
+    .sortedWith(StringComparatorIgnoreCase { it })
 
 fun RememberStateFlowScope.cipherChangePasswordAction(
     changeCipherPasswordById: ChangeCipherPasswordById,

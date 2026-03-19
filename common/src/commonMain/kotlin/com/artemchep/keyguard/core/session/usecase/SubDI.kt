@@ -61,6 +61,7 @@ import com.artemchep.keyguard.common.usecase.ArchiveCipherById
 import com.artemchep.keyguard.common.usecase.BackupSettings
 import com.artemchep.keyguard.common.usecase.ChangeCipherNameById
 import com.artemchep.keyguard.common.usecase.ChangeCipherPasswordById
+import com.artemchep.keyguard.common.usecase.ChangeCipherTagsById
 import com.artemchep.keyguard.common.usecase.CheckPasswordLeak
 import com.artemchep.keyguard.common.usecase.CheckPasswordSetLeak
 import com.artemchep.keyguard.common.usecase.CheckUsernameLeak
@@ -244,6 +245,7 @@ import com.artemchep.keyguard.provider.bitwarden.usecase.AddUriCipherImpl
 import com.artemchep.keyguard.provider.bitwarden.usecase.ArchiveCipherByIdImpl
 import com.artemchep.keyguard.provider.bitwarden.usecase.ChangeCipherNameByIdImpl
 import com.artemchep.keyguard.provider.bitwarden.usecase.ChangeCipherPasswordByIdImpl
+import com.artemchep.keyguard.provider.bitwarden.usecase.ChangeCipherTagsByIdImpl
 import com.artemchep.keyguard.provider.bitwarden.usecase.CheckPasswordLeakImpl
 import com.artemchep.keyguard.provider.bitwarden.usecase.CheckPasswordSetLeakImpl
 import com.artemchep.keyguard.provider.bitwarden.usecase.CheckUsernameLeakImpl
@@ -606,6 +608,9 @@ fun DI.Builder.createSubDi2(
     }
     bindSingleton<ChangeCipherNameById> {
         ChangeCipherNameByIdImpl(this)
+    }
+    bindSingleton<ChangeCipherTagsById> {
+        ChangeCipherTagsByIdImpl(this)
     }
     bindSingleton<RetryCipher> {
         RetryCipherImpl(this)

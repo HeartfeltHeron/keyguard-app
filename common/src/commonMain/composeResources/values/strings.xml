@@ -322,6 +322,7 @@
     <string name="ciphers_action_change_folder_title">Move to folder</string>
     <string name="ciphers_action_change_name_title">Change name</string>
     <string name="ciphers_action_change_names_title">Change names</string>
+    <string name="ciphers_action_change_tags_title">Change tags</string>
     <string name="ciphers_action_add_password_title">Add password</string>
     <string name="ciphers_action_add_passwords_title">Add passwords</string>
     <string name="ciphers_action_change_password_title">Change password</string>
