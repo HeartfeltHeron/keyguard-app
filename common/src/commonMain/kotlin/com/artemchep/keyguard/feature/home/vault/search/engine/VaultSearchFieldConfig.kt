@@ -38,7 +38,7 @@ internal fun VaultTextField.profile(): SearchTokenizerProfile =
 
 internal fun VaultTextField.boost(): Double =
     when (this) {
-        VaultTextField.Title -> 4.0
+        VaultTextField.Title -> 6.0
 
         VaultTextField.Host,
         VaultTextField.PasskeyRpId,
