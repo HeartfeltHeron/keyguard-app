@@ -71,6 +71,7 @@ import com.artemchep.keyguard.feature.home.vault.component.AddAccountView
 import com.artemchep.keyguard.feature.home.vault.component.FlatItemLayoutExpressive
 import com.artemchep.keyguard.feature.home.vault.component.SearchQualifierSuggestionPopup
 import com.artemchep.keyguard.feature.home.vault.component.SmartBadge
+import com.artemchep.keyguard.feature.home.vault.component.VaultItemSearchContextBadge
 import com.artemchep.keyguard.feature.home.vault.component.acceptSearchQualifierSuggestion
 import com.artemchep.keyguard.feature.home.vault.component.canAcceptSearchQualifierSuggestion
 import com.artemchep.keyguard.feature.home.vault.component.rememberSearchQueryHighlightVisualTransformation
@@ -601,6 +602,14 @@ private fun QuickSearchResultRow(
                             }
                         },
             )
+            item.searchContextBadge?.let { badge ->
+                VaultItemSearchContextBadge(
+                    modifier = Modifier
+                        .padding(top = 8.dp)
+                        .fillMaxWidth(),
+                    badge = badge,
+                )
+            }
         },
         leading = {
             AccountListItemTextIcon(

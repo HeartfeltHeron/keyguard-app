@@ -3,6 +3,7 @@ package com.artemchep.keyguard.feature.home.vault.component
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -26,11 +27,21 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AlternateEmail
+import androidx.compose.material.icons.outlined.CreditCard
+import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Password
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Phone
+import androidx.compose.material.icons.outlined.PhoneIphone
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.SearchOff
+import androidx.compose.material.icons.outlined.Title
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.Icon
@@ -59,7 +70,10 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -76,6 +90,7 @@ import com.artemchep.keyguard.ui.icons.FaviconIcon
 import com.artemchep.keyguard.feature.filepicker.humanReadableByteCountSI
 import com.artemchep.keyguard.feature.home.vault.model.VaultItem2
 import com.artemchep.keyguard.feature.home.vault.model.VaultItemIcon
+import com.artemchep.keyguard.feature.home.vault.search.query.compiler.VaultTextField
 import com.artemchep.keyguard.feature.localization.textResource
 import com.artemchep.keyguard.feature.twopane.LocalHasDetailPane
 import com.artemchep.keyguard.res.Res
@@ -94,7 +109,12 @@ import com.artemchep.keyguard.ui.animatedConcealedText
 import com.artemchep.keyguard.ui.icons.ChevronIcon
 import com.artemchep.keyguard.ui.icons.IconSmallBox
 import com.artemchep.keyguard.ui.icons.KeyguardAttachment
+import com.artemchep.keyguard.ui.icons.KeyguardCipher
 import com.artemchep.keyguard.ui.icons.KeyguardFavourite
+import com.artemchep.keyguard.ui.icons.KeyguardNote
+import com.artemchep.keyguard.ui.icons.KeyguardPasskey
+import com.artemchep.keyguard.ui.icons.KeyguardSshKey
+import com.artemchep.keyguard.ui.icons.KeyguardWebsite
 import com.artemchep.keyguard.ui.rightClickable
 import com.artemchep.keyguard.ui.surface.LocalSurfaceElevation
 import com.artemchep.keyguard.ui.surface.surfaceNextGroupColorToElevationColor
@@ -103,6 +123,7 @@ import com.artemchep.keyguard.ui.theme.LocalExpressive
 import com.artemchep.keyguard.ui.theme.combineAlpha
 import com.artemchep.keyguard.ui.theme.isDark
 import com.artemchep.keyguard.ui.theme.selectedContainer
+import com.artemchep.keyguard.ui.util.DividerColor
 import com.artemchep.keyguard.ui.util.HorizontalDivider
 import org.jetbrains.compose.resources.stringResource
 import kotlinx.collections.immutable.ImmutableList
@@ -302,13 +323,6 @@ fun VaultListItemText(
 
         else -> Color.Unspecified
     }
-    val badgeColor = if (backgroundColor.isSpecified) {
-        LocalContentColor.current
-            .combineAlpha(0.03f)
-            .compositeOver(backgroundColor)
-    } else {
-        backgroundColor
-    }
     FlatItemLayoutExpressive(
         modifier = modifier,
         backgroundColor = backgroundColor,
@@ -350,6 +364,15 @@ fun VaultListItemText(
             )
 
             content?.invoke(this)
+
+            item.searchContextBadge?.let { badge ->
+                VaultItemSearchContextBadge(
+                    modifier = Modifier
+                        .padding(top = 8.dp)
+                        .fillMaxWidth(),
+                    badge = badge,
+                )
+            }
 
             if (item.token != null) {
                 VaultViewTotpBadge2(
@@ -553,6 +576,50 @@ fun VaultListItemText(
 }
 
 @Composable
+fun VaultItemSearchContextBadge(
+    modifier: Modifier = Modifier,
+    badge: VaultItem2.Item.SearchContextBadge,
+) {
+    SmartBadgeListContainer(
+        modifier = modifier,
+    ) {
+        SmartBadge(
+            modifier = Modifier,
+            icon = {
+                IconSmallBox(
+                    main = resolveSearchContextBadgeIcon(badge.field),
+                )
+            },
+            title = badge.text,
+            text = null,
+        )
+    }
+}
+
+internal fun resolveSearchContextBadgeIcon(field: VaultTextField?): ImageVector =
+    when (field) {
+        VaultTextField.Title -> Icons.Outlined.Title
+        VaultTextField.Url -> Icons.Outlined.Link
+        VaultTextField.Host -> Icons.Outlined.KeyguardWebsite
+        VaultTextField.Username -> Icons.Outlined.AlternateEmail
+        VaultTextField.Email -> Icons.Outlined.Email
+        VaultTextField.PasskeyRpId -> Icons.Outlined.KeyguardPasskey
+        VaultTextField.IdentityName -> Icons.Outlined.Person
+        VaultTextField.Phone -> Icons.Outlined.Phone
+        VaultTextField.CardholderName -> Icons.Outlined.CreditCard
+        VaultTextField.CardBrand -> Icons.Outlined.CreditCard
+        VaultTextField.PasskeyDisplayName -> Icons.Outlined.KeyguardPasskey
+        VaultTextField.AttachmentName -> Icons.Outlined.KeyguardAttachment
+        VaultTextField.FieldName -> Icons.Outlined.Info
+        VaultTextField.Note -> Icons.Outlined.KeyguardNote
+        VaultTextField.Field -> Icons.Outlined.Info
+        VaultTextField.Ssh -> Icons.Outlined.KeyguardSshKey
+        VaultTextField.Password -> Icons.Outlined.Password
+        VaultTextField.CardNumber -> Icons.Outlined.CreditCard
+        else -> Icons.Outlined.Info
+    }
+
+@Composable
 inline fun <T : Any> SmartBadgeList(
     modifier: Modifier = Modifier,
     items: List<T>,
@@ -599,6 +666,7 @@ fun SmartBadge(
 ) {
     val updatedOnClick by rememberUpdatedState(onClick)
 
+    val shape = MaterialTheme.shapes.small
     val backgroundModifier = if (selected) {
         val tintColor = MaterialTheme.colorScheme
             .surfaceColorAtElevationSemi(4.dp)
@@ -612,9 +680,18 @@ fun SmartBadge(
     } else {
         Modifier
     }
+    val borderModifier = if (!selected && updatedOnClick == null) {
+        val tintColor = MaterialTheme.colorScheme
+            .surfaceColorAtElevationSemi(1.dp)
+        Modifier
+            .border(Dp.Hairline, tintColor, shape)
+    } else {
+        Modifier
+    }
     Row(
         modifier = modifier
-            .clip(MaterialTheme.shapes.small)
+            .then(borderModifier)
+            .clip(shape)
             .then(backgroundModifier)
             .clickable(enabled = updatedOnClick != null) {
                 updatedOnClick?.invoke()

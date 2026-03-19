@@ -14,6 +14,7 @@ import com.artemchep.keyguard.common.model.TotpToken
 import com.artemchep.keyguard.common.usecase.CopyText
 import com.artemchep.keyguard.feature.attachments.SelectableItemState
 import com.artemchep.keyguard.feature.localization.TextHolder
+import com.artemchep.keyguard.feature.home.vault.search.query.compiler.VaultTextField
 import com.artemchep.keyguard.ui.ContextItem
 import com.artemchep.keyguard.ui.FlatItemAction
 import com.artemchep.keyguard.ui.icons.AccentColors
@@ -107,6 +108,7 @@ sealed interface VaultItem2 {
          */
         val title: AnnotatedString,
         val text: String?,
+        val searchContextBadge: SearchContextBadge? = null,
         val favourite: Boolean,
         val attachments: Boolean,
         val shapeState: Int = ShapeState.ALL,
@@ -162,6 +164,12 @@ sealed interface VaultItem2 {
         data class Attachment(
             val source: DSecret.Attachment,
             val onClick: () -> Unit,
+        )
+
+        @Immutable
+        data class SearchContextBadge(
+            val field: VaultTextField,
+            val text: String,
         )
 
         @Immutable

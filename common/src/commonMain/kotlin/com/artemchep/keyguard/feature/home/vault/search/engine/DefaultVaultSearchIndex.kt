@@ -897,15 +897,20 @@ private class DefaultVaultSearchIndex(
             } else {
                 item.title
             }
-        val newText =
-            if (titleTerms.isEmpty() && context != null) {
-                "${context.field.displayName}: ${context.snippet}"
-            } else {
-                item.text
-            }
+        val newText = item.text
+        val newSearchContextBadge =
+            context
+                ?.takeIf { titleTerms.isEmpty() }
+                ?.let {
+                    VaultItem2.Item.SearchContextBadge(
+                        field = it.field,
+                        text = it.snippet,
+                    )
+                }
         return item.copy(
             title = newTitle,
             text = newText,
+            searchContextBadge = newSearchContextBadge,
         )
     }
 }

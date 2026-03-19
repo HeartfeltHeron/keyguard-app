@@ -13,6 +13,7 @@ import com.artemchep.keyguard.feature.home.vault.search.TEST_INSTANT
 import com.artemchep.keyguard.feature.home.vault.search.createItem
 import com.artemchep.keyguard.feature.home.vault.search.createSecret
 import com.artemchep.keyguard.feature.home.vault.search.query.compiler.DefaultVaultSearchQueryCompiler
+import com.artemchep.keyguard.feature.home.vault.search.query.compiler.VaultTextField
 import com.artemchep.keyguard.feature.home.vault.search.query.parser.DefaultVaultSearchParser
 import com.artemchep.keyguard.ui.icons.AccentColors
 import kotlinx.coroutines.test.runTest
@@ -79,7 +80,46 @@ class VaultSearchEngineTest {
                 )
 
             assertEquals(1, out.size)
-            assertTrue(out.single().text?.startsWith("username:") == true)
+            assertEquals("old text", out.single().text)
+            assertSearchContextBadge(
+                item = out.single(),
+                field = VaultTextField.Username,
+                text = "alice@example.com",
+            )
+        }
+
+    @Test
+    fun `email qualifier matches and writes context`() =
+        runTest {
+            val secret =
+                createSecret(
+                    id = "email-id",
+                    name = "Email Login",
+                    identity =
+                        DSecret.Identity(
+                            email = "alice@example.com",
+                        ),
+                )
+            val item = createItem(secret, text = "old text")
+            val index = builder.build(listOf(secret))
+
+            val plan = index.compile("email:ali", VaultRoute.Args.SearchBy.ALL)
+            assertNotNull(plan)
+            val out =
+                index.evaluate(
+                    plan = plan,
+                    candidates = listOf(item),
+                    highlightBackgroundColor = Color.Unspecified,
+                    highlightContentColor = Color.Unspecified,
+                )
+
+            assertEquals(1, out.size)
+            assertEquals("old text", out.single().text)
+            assertSearchContextBadge(
+                item = out.single(),
+                field = VaultTextField.Email,
+                text = "alice@example.com",
+            )
         }
 
     @Test
@@ -109,7 +149,12 @@ class VaultSearchEngineTest {
                 )
 
             assertEquals(1, out.size)
-            assertTrue(out.single().text?.startsWith("username: alice@example.com") == true)
+            assertEquals("old text", out.single().text)
+            assertSearchContextBadge(
+                item = out.single(),
+                field = VaultTextField.Username,
+                text = "alice@example.com",
+            )
         }
 
     @Test
@@ -492,7 +537,12 @@ class VaultSearchEngineTest {
                 )
 
             assertEquals(1, out.size)
-            assertEquals("password: $HIDDEN_FIELD_MASK", out.single().text)
+            assertEquals("old text", out.single().text)
+            assertSearchContextBadge(
+                item = out.single(),
+                field = VaultTextField.Password,
+                text = HIDDEN_FIELD_MASK,
+            )
         }
 
     @Test
@@ -518,7 +568,12 @@ class VaultSearchEngineTest {
                 )
 
             assertEquals(1, out.size)
-            assertEquals("note: very secret note", out.single().text)
+            assertEquals("old text", out.single().text)
+            assertSearchContextBadge(
+                item = out.single(),
+                field = VaultTextField.Note,
+                text = "very secret note",
+            )
         }
 
     @Test
@@ -549,7 +604,12 @@ class VaultSearchEngineTest {
                 )
 
             assertEquals(1, out.size)
-            assertEquals("card-number: ${obscureCardNumber("4111111111111111")}", out.single().text)
+            assertEquals("old text", out.single().text)
+            assertSearchContextBadge(
+                item = out.single(),
+                field = VaultTextField.CardNumber,
+                text = obscureCardNumber("4111111111111111"),
+            )
         }
 
     @Test
@@ -716,7 +776,12 @@ class VaultSearchEngineTest {
                 )
 
             assertEquals(1, out.size)
-            assertEquals("field: api-key", out.single().text)
+            assertEquals("old text", out.single().text)
+            assertSearchContextBadge(
+                item = out.single(),
+                field = VaultTextField.Field,
+                text = "api-key",
+            )
         }
 
     @Test
@@ -749,7 +814,12 @@ class VaultSearchEngineTest {
                 )
 
             assertEquals(1, out.size)
-            assertEquals("field: internal-token", out.single().text)
+            assertEquals("old text", out.single().text)
+            assertSearchContextBadge(
+                item = out.single(),
+                field = VaultTextField.Field,
+                text = "internal-token",
+            )
         }
 
     @Test
@@ -782,7 +852,12 @@ class VaultSearchEngineTest {
                 )
 
             assertEquals(1, out.size)
-            assertTrue(out.single().text?.startsWith("field: $HIDDEN_FIELD_MASK") == true)
+            assertEquals("old text", out.single().text)
+            assertSearchContextBadge(
+                item = out.single(),
+                field = VaultTextField.Field,
+                text = HIDDEN_FIELD_MASK,
+            )
         }
 
     @Test
@@ -815,7 +890,12 @@ class VaultSearchEngineTest {
                 )
 
             assertEquals(1, out.size)
-            assertEquals("field: enabled", out.single().text)
+            assertEquals("old text", out.single().text)
+            assertSearchContextBadge(
+                item = out.single(),
+                field = VaultTextField.Field,
+                text = "enabled",
+            )
         }
 
     @Test
@@ -848,7 +928,12 @@ class VaultSearchEngineTest {
                 )
 
             assertEquals(1, out.size)
-            assertEquals("field: true", out.single().text)
+            assertEquals("old text", out.single().text)
+            assertSearchContextBadge(
+                item = out.single(),
+                field = VaultTextField.Field,
+                text = "true",
+            )
         }
 
     @Test
@@ -881,7 +966,12 @@ class VaultSearchEngineTest {
                 )
 
             assertEquals(1, out.size)
-            assertEquals("field: api-key", out.single().text)
+            assertEquals("old text", out.single().text)
+            assertSearchContextBadge(
+                item = out.single(),
+                field = VaultTextField.FieldName,
+                text = "api-key",
+            )
         }
 
     @Test
@@ -1183,7 +1273,12 @@ class VaultSearchEngineTest {
 
             assertEquals(1, out.size)
             assertEquals(item.title, out.single().title)
-            assertTrue(out.single().text?.startsWith("name: Alice Beth Smith") == true)
+            assertEquals("old text", out.single().text)
+            assertSearchContextBadge(
+                item = out.single(),
+                field = VaultTextField.IdentityName,
+                text = "Alice Beth Smith",
+            )
         }
 
     @Test
@@ -1213,7 +1308,12 @@ class VaultSearchEngineTest {
 
             assertEquals(1, out.size)
             assertEquals(item.title, out.single().title)
-            assertTrue(out.single().text?.startsWith("phone: +1 (555) 123-4567") == true)
+            assertEquals("old text", out.single().text)
+            assertSearchContextBadge(
+                item = out.single(),
+                field = VaultTextField.Phone,
+                text = "+1 (555) 123-4567",
+            )
         }
 
     @Test
@@ -1244,7 +1344,12 @@ class VaultSearchEngineTest {
 
             assertEquals(1, out.size)
             assertEquals(item.title, out.single().title)
-            assertTrue(out.single().text?.startsWith("cardholder: Jane Cardholder") == true)
+            assertEquals("old text", out.single().text)
+            assertSearchContextBadge(
+                item = out.single(),
+                field = VaultTextField.CardholderName,
+                text = "Jane Cardholder",
+            )
         }
 
     @Test
@@ -1314,7 +1419,11 @@ class VaultSearchEngineTest {
                 listOf("title-id", "attachment-id"),
                 out.map { it.id },
             )
-            assertTrue(out[1].text?.startsWith("attachment: Report.pdf") == true)
+            assertSearchContextBadge(
+                item = out[1],
+                field = VaultTextField.AttachmentName,
+                text = "Report.pdf",
+            )
         }
 
     @Test
@@ -1348,7 +1457,11 @@ class VaultSearchEngineTest {
                 )
 
             assertEquals(1, out.size)
-            assertTrue(out.single().text?.startsWith("attachment: Company-Report.pdf") == true)
+            assertSearchContextBadge(
+                item = out.single(),
+                field = VaultTextField.AttachmentName,
+                text = "Company-Report.pdf",
+            )
         }
 
     @Test
@@ -1393,7 +1506,12 @@ class VaultSearchEngineTest {
                     highlightContentColor = Color.Unspecified,
                 )
             assertEquals(1, rpIdOut.size)
-            assertTrue(rpIdOut.single().text?.startsWith("passkey: example.com") == true)
+            assertEquals("old text", rpIdOut.single().text)
+            assertSearchContextBadge(
+                item = rpIdOut.single(),
+                field = VaultTextField.PasskeyRpId,
+                text = "example.com",
+            )
 
             val displayNamePlan = index.compile("passkey:device", VaultRoute.Args.SearchBy.ALL)
             assertNotNull(displayNamePlan)
@@ -1405,7 +1523,12 @@ class VaultSearchEngineTest {
                     highlightContentColor = Color.Unspecified,
                 )
             assertEquals(1, displayNameOut.size)
-            assertTrue(displayNameOut.single().text?.startsWith("passkey: Alice Device") == true)
+            assertEquals("old text", displayNameOut.single().text)
+            assertSearchContextBadge(
+                item = displayNameOut.single(),
+                field = VaultTextField.PasskeyDisplayName,
+                text = "Alice Device",
+            )
         }
 
     @Test
@@ -1438,13 +1561,23 @@ class VaultSearchEngineTest {
                 ).map { it.id },
             )
             assertEquals(
-                "ssh: public-key-token",
+                "old text",
                 index.evaluate(
                     plan = publicKeyPlan,
                     candidates = listOf(item),
                     highlightBackgroundColor = Color.Unspecified,
                     highlightContentColor = Color.Unspecified,
                 ).single().text,
+            )
+            assertSearchContextBadge(
+                item = index.evaluate(
+                    plan = publicKeyPlan,
+                    candidates = listOf(item),
+                    highlightBackgroundColor = Color.Unspecified,
+                    highlightContentColor = Color.Unspecified,
+                ).single(),
+                field = VaultTextField.Ssh,
+                text = "public-key-token",
             )
 
             val fingerprintPlan = index.compile("ssh:fingerprint", VaultRoute.Args.SearchBy.ALL)
@@ -1459,13 +1592,23 @@ class VaultSearchEngineTest {
                 ).map { it.id },
             )
             assertEquals(
-                "ssh: fingerprint-token",
+                "old text",
                 index.evaluate(
                     plan = fingerprintPlan,
                     candidates = listOf(item),
                     highlightBackgroundColor = Color.Unspecified,
                     highlightContentColor = Color.Unspecified,
                 ).single().text,
+            )
+            assertSearchContextBadge(
+                item = index.evaluate(
+                    plan = fingerprintPlan,
+                    candidates = listOf(item),
+                    highlightBackgroundColor = Color.Unspecified,
+                    highlightContentColor = Color.Unspecified,
+                ).single(),
+                field = VaultTextField.Ssh,
+                text = "fingerprint-token",
             )
 
             val privateKeyPlan = index.compile("ssh:private", VaultRoute.Args.SearchBy.ALL)
@@ -1478,7 +1621,12 @@ class VaultSearchEngineTest {
                     highlightContentColor = Color.Unspecified,
                 )
             assertEquals(1, privateKeyOut.size)
-            assertEquals("ssh: $HIDDEN_FIELD_MASK", privateKeyOut.single().text)
+            assertEquals("old text", privateKeyOut.single().text)
+            assertSearchContextBadge(
+                item = privateKeyOut.single(),
+                field = VaultTextField.Ssh,
+                text = HIDDEN_FIELD_MASK,
+            )
         }
 
     @Test
@@ -1537,7 +1685,12 @@ class VaultSearchEngineTest {
                 )
 
             assertEquals(1, out.size)
-            assertTrue(out.single().text?.startsWith("brand: Visa") == true)
+            assertEquals("old text", out.single().text)
+            assertSearchContextBadge(
+                item = out.single(),
+                field = VaultTextField.CardBrand,
+                text = "Visa",
+            )
         }
 
     @Test
@@ -1584,8 +1737,23 @@ class VaultSearchEngineTest {
 
             assertEquals(1, out.size)
             assertEquals(item.title, out.single().title)
-            assertTrue(out.single().text?.startsWith("passkey: Alice Device") == true)
+            assertEquals("old text", out.single().text)
+            assertSearchContextBadge(
+                item = out.single(),
+                field = VaultTextField.PasskeyDisplayName,
+                text = "Alice Device",
+            )
         }
+}
+
+private fun assertSearchContextBadge(
+    item: com.artemchep.keyguard.feature.home.vault.model.VaultItem2.Item,
+    field: VaultTextField,
+    text: String,
+) {
+    val badge = assertNotNull(item.searchContextBadge)
+    assertEquals(field, badge.field)
+    assertEquals(text, badge.text)
 }
 
 private class CountingSearchTokenizer(
