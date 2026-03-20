@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.view.KeyEvent
 import android.view.WindowManager
 import android.webkit.MimeTypeMap
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
 import androidx.browser.customtabs.CustomTabsIntent
@@ -22,7 +23,6 @@ import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.core.content.FileProvider
 import androidx.core.net.toFile
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import com.artemchep.keyguard.common.io.effectTap
 import com.artemchep.keyguard.common.io.flatMap
@@ -97,6 +97,7 @@ abstract class BaseActivity : AppCompatActivity(), DIAware {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         installSplashScreen()
+        enableEdgeToEdge()
 
         val getAllowScreenshots by instance<GetAllowScreenshots>()
         getAllowScreenshots()
@@ -116,7 +117,6 @@ abstract class BaseActivity : AppCompatActivity(), DIAware {
             }
             .launchIn(lifecycleScope)
 
-        WindowCompat.setDecorFitsSystemWindows(window, false)
         setContent {
             KeyguardTheme {
                 val containerColor = LocalBackgroundManager.current.colorHighest
