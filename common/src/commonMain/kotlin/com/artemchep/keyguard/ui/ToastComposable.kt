@@ -33,6 +33,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -129,7 +130,17 @@ fun ToastMessageHost(
     val hub by rememberInstance<MessageHub>()
     val nav = navigationNodeStack()
     val scope = rememberCoroutineScope()
-    DisposableEffect(hub, scope) {
+
+    val isFocused = LocalWindowInfo.current.isWindowFocused
+    DisposableEffect(hub, scope, isFocused) {
+        // If the window is not focused then we do not want it
+        // to intercept the toast messages.
+        if (!isFocused) {
+            return@DisposableEffect onDispose {
+                // Do nothing
+            }
+        }
+
         val unregister = hub.register(nav) { message ->
             messagesState.update { existingMessages ->
                 val out = existingMessages.toMutableList()
