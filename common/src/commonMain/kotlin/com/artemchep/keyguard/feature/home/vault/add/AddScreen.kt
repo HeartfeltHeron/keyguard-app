@@ -256,7 +256,8 @@ private fun LazyListScope.populateItemsContent(
                 index = index,
             )
             AnyField(
-                modifier = Modifier,
+                modifier = Modifier
+                    .animateItem(),
                 item = item,
                 shapeState = shapeState,
             )
