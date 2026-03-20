@@ -138,6 +138,8 @@ msgpack = "0.8.20"
 slf4j = "2.0.17"
 # https://github.com/bcgit/bc-java
 bouncycastle = "1.83"
+# https://github.com/hierynomus/sshj
+sshj = "0.38.0"
 # https://github.com/sqlcipher/sqlcipher-android
 sqlcipherAndroid = "4.13.0"
 # https://github.com/cashapp/sqldelight
@@ -290,6 +292,7 @@ osipxd-security-crypto-datastore-preferences = { module = "io.github.osipxd:secu
 bouncycastle-bcpkix = { module = "org.bouncycastle:bcpkix-jdk18on", version.ref = "bouncycastle" }
 bouncycastle-bcprov = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
 bouncycastle-bctls = { module = "org.bouncycastle:bctls-jdk18on", version.ref = "bouncycastle" }
+hierynomus-sshj = { module = "com.hierynomus:sshj", version.ref = "sshj" }
 mayakapps-window-styler = { module = "com.mayakapps.compose:window-styler", version.ref = "windowStyler" }
 microsoft-signalr = { module = "com.microsoft.signalr:signalr", version.ref = "signalr" }
 microsoft-signalr-messagepack = { module = "com.microsoft.signalr.messagepack:signalr-messagepack", version.ref = "signalr" }

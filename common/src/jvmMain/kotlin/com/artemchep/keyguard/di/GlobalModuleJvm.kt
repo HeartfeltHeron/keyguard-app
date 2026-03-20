@@ -11,6 +11,7 @@ import com.artemchep.keyguard.common.service.crypto.CryptoGenerator
 import com.artemchep.keyguard.common.service.crypto.FileEncryptor
 import com.artemchep.keyguard.common.usecase.KeyPairExport
 import com.artemchep.keyguard.common.service.crypto.KeyPairGenerator
+import com.artemchep.keyguard.common.service.crypto.SshKeyImportService
 import com.artemchep.keyguard.common.usecase.KeyPrivateExport
 import com.artemchep.keyguard.common.usecase.KeyPublicExport
 import com.artemchep.keyguard.common.service.deeplink.DeeplinkService
@@ -436,6 +437,7 @@ import com.artemchep.keyguard.crypto.CipherEncryptorImpl
 import com.artemchep.keyguard.crypto.CryptoGeneratorJvm
 import com.artemchep.keyguard.crypto.FileEncryptorJvm
 import com.artemchep.keyguard.crypto.KeyPairGeneratorJvm
+import com.artemchep.keyguard.crypto.SshKeyImportServiceJvm
 import com.artemchep.keyguard.crypto.ssl.installPlatformTrustManager
 import com.artemchep.keyguard.platform.CurrentPlatform
 import com.artemchep.keyguard.platform.util.isRelease
@@ -1556,6 +1558,11 @@ fun globalModuleJvm() = DI.Module(
     }
     bindSingleton<KeyPairGenerator> {
         KeyPairGeneratorJvm(
+            directDI = this,
+        )
+    }
+    bindSingleton<SshKeyImportService> {
+        SshKeyImportServiceJvm(
             directDI = this,
         )
     }

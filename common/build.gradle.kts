@@ -172,6 +172,7 @@ kotlin {
                 implementation(libs.commons.codec)
                 implementation(libs.bouncycastle.bcpkix)
                 implementation(libs.bouncycastle.bcprov)
+                implementation(libs.hierynomus.sshj)
                 implementation(libs.ricecode.string.similarity)
                 implementation(libs.google.zxing.core)
                 // SignalR

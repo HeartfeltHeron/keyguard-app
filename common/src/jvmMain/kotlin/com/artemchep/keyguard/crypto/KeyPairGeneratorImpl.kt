@@ -19,6 +19,7 @@ import org.bouncycastle.crypto.params.RSAKeyParameters
 import org.bouncycastle.crypto.params.RSAPrivateCrtKeyParameters
 import org.bouncycastle.crypto.util.OpenSSHPrivateKeyUtil
 import org.bouncycastle.crypto.util.OpenSSHPublicKeyUtil
+import org.bouncycastle.crypto.util.PrivateKeyFactory
 import org.bouncycastle.util.encoders.Base64
 import org.kodein.di.DirectDI
 import org.kodein.di.instance
@@ -111,7 +112,7 @@ class KeyPairGeneratorJvm(
         // We parse it to confirm that we do understand
         // it and can manipulate it in the future if we
         // need to.
-        val parsedPrivateKey = OpenSSHPrivateKeyUtil.parsePrivateKeyBlob(encodedPrivateKey)
+        val parsedPrivateKey = parsePrivateKeyBlob(encodedPrivateKey)
         return KeyPairRaw(
             type = when (parsedPublicKey) {
                 is RSAKeyParameters -> KeyPair.Type.RSA
@@ -145,29 +146,10 @@ class KeyPairGeneratorJvm(
             )
         }
         val privateKey = kotlin.run {
-            val ssh = kotlin.run {
-                // TODO: Current OpenSSHPrivateKeyUtil.encodePrivateKey(key) generates
-                //  a key in RSA format for the RSA key. Would be nice to always export
-                //  it as OPENSSH.
-                val (lineLength, headerType) = when (keyPair.type) {
-                    KeyPair.Type.ED25519 -> 70 to "OPENSSH PRIVATE KEY"
-                    KeyPair.Type.RSA -> 64 to "RSA PRIVATE KEY"
-                }
-
-                val encodedKeyBase64SingleLine = keyPair.privateKey.encoded.encodeAsBase64()
-                val encodedKeyBase64MultiLineList = encodedKeyBase64SingleLine
-                    .windowedSequence(lineLength, step = lineLength, partialWindows = true)
-                buildString {
-                    append("-----BEGIN $headerType-----")
-                    appendLine()
-                    encodedKeyBase64MultiLineList.forEach { line ->
-                        append(line)
-                        appendLine()
-                    }
-                    append("-----END $headerType-----")
-                    appendLine()
-                }
-            }
+            val ssh = createPrivateKeyPem(
+                type = keyPair.type,
+                encodedPrivateKey = keyPair.privateKey.encoded,
+            )
             val fingerprint = keyPair.privateKey.encoded.encodeAsFingerprint()
             KeyPair.KeyParameter(
                 type = keyPair.type,
@@ -247,11 +229,19 @@ class KeyPairGeneratorJvm(
     override fun getPrivateKeyLengthOrNull(
         keyPair: KeyParameterRawZero,
     ): Int? = kotlin.runCatching {
-        val key = OpenSSHPrivateKeyUtil
-            .parsePrivateKeyBlob(keyPair.privateKey.encoded)
+        val key = parsePrivateKeyBlob(keyPair.privateKey.encoded)
         when (key) {
             is RSAPrivateCrtKeyParameters -> key.modulus.bitLength()
+            is RSAKeyParameters -> key.modulus.bitLength()
             else -> null
         }
     }.getOrNull()
+
+    internal fun parsePrivateKeyBlob(
+        encodedPrivateKey: ByteArray,
+    ): AsymmetricKeyParameter = kotlin.runCatching {
+        OpenSSHPrivateKeyUtil.parsePrivateKeyBlob(encodedPrivateKey)
+    }.recoverCatching {
+        PrivateKeyFactory.createKey(encodedPrivateKey)
+    }.getOrThrow()
 }

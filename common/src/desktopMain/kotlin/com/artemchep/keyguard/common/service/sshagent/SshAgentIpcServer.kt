@@ -16,9 +16,13 @@ import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters
+import org.bouncycastle.crypto.params.RSAKeyParameters
 import org.bouncycastle.crypto.params.RSAPrivateCrtKeyParameters
+import org.bouncycastle.crypto.digests.SHA1Digest
+import org.bouncycastle.crypto.digests.SHA256Digest
+import org.bouncycastle.crypto.digests.SHA512Digest
 import org.bouncycastle.crypto.signers.Ed25519Signer
-import org.bouncycastle.crypto.util.OpenSSHPrivateKeyUtil
+import org.bouncycastle.crypto.signers.RSADigestSigner
 import org.bouncycastle.util.encoders.Base64
 import org.kodein.di.direct
 import org.kodein.di.instance
@@ -33,8 +37,11 @@ import java.nio.channels.SocketChannel
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.attribute.PosixFilePermission
+import java.security.KeyFactory
 import java.security.MessageDigest
+import java.security.PrivateKey
 import java.security.Signature as JcaSignature
+import java.security.spec.PKCS8EncodedKeySpec
 
 /**
  * IPC server that listens for connections from the keyguard-ssh-agent
@@ -588,19 +595,35 @@ class SshAgentIpcServer(
             .joinToString(separator = "")
             .let { Base64.decode(it) }
 
-        val parsedKey = OpenSSHPrivateKeyUtil.parsePrivateKeyBlob(encodedPrivateKey)
+        val parsedKey = kotlin.runCatching {
+            org.bouncycastle.crypto.util.OpenSSHPrivateKeyUtil.parsePrivateKeyBlob(encodedPrivateKey)
+        }.getOrNull()
 
-        return when (parsedKey) {
-            is Ed25519PrivateKeyParameters -> {
-                signEd25519(parsedKey, data)
+        if (parsedKey != null) {
+            return when (parsedKey) {
+                is Ed25519PrivateKeyParameters -> {
+                    signEd25519(parsedKey, data)
+                }
+
+                is RSAPrivateCrtKeyParameters -> {
+                    signRsa(parsedKey, data, flags)
+                }
+
+                is RSAKeyParameters -> {
+                    signRsa(parsedKey, data, flags)
+                }
+
+                else -> throw IllegalArgumentException(
+                    "Unsupported key type: ${parsedKey::class.simpleName}",
+                )
             }
+        }
 
-            is RSAPrivateCrtKeyParameters -> {
-                signRsa(parsedKey, data, flags)
-            }
-
+        val jcaPrivateKey = parseJcaPrivateKey(encodedPrivateKey)
+        return when (jcaPrivateKey.algorithm) {
+            "RSA" -> signRsaJca(jcaPrivateKey, data, flags)
             else -> throw IllegalArgumentException(
-                "Unsupported key type: ${parsedKey::class.simpleName}",
+                "Unsupported key type: ${jcaPrivateKey.algorithm}",
             )
         }
     }
@@ -629,35 +652,42 @@ class SshAgentIpcServer(
      * by the SSH agent protocol flags.
      */
     internal fun signRsa(
-        privateKey: RSAPrivateCrtKeyParameters,
+        privateKey: RSAKeyParameters,
         data: ByteArray,
         flags: Int,
     ): SignResult {
         // Determine the hash algorithm based on SSH agent flags.
         // Flag 0x04 = rsa-sha2-512, 0x02 = rsa-sha2-256, default = ssh-rsa (SHA-1).
+        val (algorithm, digest) = when {
+            flags and 0x04 != 0 -> "rsa-sha2-512" to SHA512Digest()
+            flags and 0x02 != 0 -> "rsa-sha2-256" to SHA256Digest()
+            else -> "ssh-rsa" to SHA1Digest()
+        }
+
+        val signer = RSADigestSigner(digest)
+        signer.init(true, privateKey)
+        signer.update(data, 0, data.size)
+        val rawSignature = signer.generateSignature()
+
+        return SignResult(
+            signature = rawSignature,
+            algorithm = algorithm,
+        )
+    }
+
+    internal fun signRsaJca(
+        privateKey: PrivateKey,
+        data: ByteArray,
+        flags: Int,
+    ): SignResult {
         val (algorithm, jcaAlgorithm) = when {
             flags and 0x04 != 0 -> "rsa-sha2-512" to "SHA512withRSA"
             flags and 0x02 != 0 -> "rsa-sha2-256" to "SHA256withRSA"
             else -> "ssh-rsa" to "SHA1withRSA"
         }
 
-        // Convert BouncyCastle RSA key to JCA for standard PKCS#1 v1.5 signing.
-        val keyFactory = java.security.KeyFactory.getInstance("RSA")
-        val jcaPrivateKey = keyFactory.generatePrivate(
-            java.security.spec.RSAPrivateCrtKeySpec(
-                privateKey.modulus,
-                privateKey.publicExponent,
-                privateKey.exponent,
-                privateKey.p,
-                privateKey.q,
-                privateKey.dp,
-                privateKey.dq,
-                privateKey.qInv,
-            ),
-        )
-
         val signer = JcaSignature.getInstance(jcaAlgorithm)
-        signer.initSign(jcaPrivateKey)
+        signer.initSign(privateKey)
         signer.update(data)
         val rawSignature = signer.sign()
 
@@ -665,6 +695,14 @@ class SshAgentIpcServer(
             signature = rawSignature,
             algorithm = algorithm,
         )
+    }
+
+    private fun parseJcaPrivateKey(
+        encodedPrivateKey: ByteArray,
+    ): PrivateKey {
+        val spec = PKCS8EncodedKeySpec(encodedPrivateKey)
+        return KeyFactory.getInstance("RSA")
+            .generatePrivate(spec)
     }
 
     // ================================================================

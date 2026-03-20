@@ -13,16 +13,17 @@ import org.bouncycastle.crypto.generators.Ed25519KeyPairGenerator
 import org.bouncycastle.crypto.params.Ed25519KeyGenerationParameters
 import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters
 import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
+import org.bouncycastle.crypto.params.RSAKeyParameters
 import org.bouncycastle.crypto.signers.Ed25519Signer
 import org.bouncycastle.crypto.util.OpenSSHPrivateKeyUtil
-import org.bouncycastle.crypto.util.OpenSSHPublicKeyUtil
 import org.bouncycastle.util.encoders.Base64
 import java.security.KeyPairGenerator
+import java.security.PrivateKey
 import java.security.SecureRandom
 import java.security.Signature as JcaSignature
+import java.security.interfaces.RSAPrivateCrtKey
 import java.security.interfaces.RSAPublicKey
 import kotlin.test.Test
-import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
@@ -157,6 +158,27 @@ class SshAgentSigningTest {
         assertTrue(verifier.verify(result.signature), "RSA-SHA256 signature should verify")
     }
 
+    @Test
+    fun `signRsa accepts non-CRT RSA key parameters`() {
+        val kp = generateJcaRsaKeyPair()
+        val privateKey = kp.private as RSAPrivateCrtKey
+        val publicKey = kp.public as RSAPublicKey
+        val nonCrtPrivateKey = RSAKeyParameters(
+            true,
+            privateKey.modulus,
+            privateKey.privateExponent,
+        )
+        val data = "non-CRT RSA verification test".toByteArray()
+
+        val result = server.signRsa(nonCrtPrivateKey, data, flags = 0x02)
+
+        assertEquals("rsa-sha2-256", result.algorithm)
+        val verifier = JcaSignature.getInstance("SHA256withRSA")
+        verifier.initVerify(publicKey)
+        verifier.update(data)
+        assertTrue(verifier.verify(result.signature), "Non-CRT RSA signature should verify")
+    }
+
     // ================================================================
     // signWithPrivateKey (PEM parsing + signing)
     // ================================================================
@@ -180,6 +202,25 @@ class SshAgentSigningTest {
         verifier.init(false, publicKey)
         verifier.update(data, 0, data.size)
         assertTrue(verifier.verifySignature(result.signature), "PEM-derived signature should verify")
+    }
+
+    @Test
+    fun `signWithPrivateKey accepts PKCS8 RSA PEM`() {
+        val kp = generateJcaRsaKeyPair()
+        val publicKey = kp.public as RSAPublicKey
+        val data = "PKCS8 RSA verification test".toByteArray()
+        val result = server.signWithPrivateKey(
+            privateKeyPem = toPkcs8PrivateKeyPem(kp.private),
+            data = data,
+            flags = 0x02,
+        )
+
+        assertEquals("rsa-sha2-256", result.algorithm)
+
+        val verifier = JcaSignature.getInstance("SHA256withRSA")
+        verifier.initVerify(publicKey)
+        verifier.update(data)
+        assertTrue(verifier.verify(result.signature), "PKCS#8 RSA signature should verify")
     }
 
     @Test
@@ -214,11 +255,8 @@ class SshAgentSigningTest {
      * Generates an RSA key pair and returns (BouncyCastle private, JCA public).
      */
     private fun generateRsaKeyPair(): Pair<org.bouncycastle.crypto.params.RSAPrivateCrtKeyParameters, RSAPublicKey> {
-        val kpg = KeyPairGenerator.getInstance("RSA")
-        kpg.initialize(2048, SecureRandom())
-        val kp = kpg.generateKeyPair()
-
-        val jcaPrivate = kp.private as java.security.interfaces.RSAPrivateCrtKey
+        val kp = generateJcaRsaKeyPair()
+        val jcaPrivate = kp.private as RSAPrivateCrtKey
         val bcPrivate = org.bouncycastle.crypto.params.RSAPrivateCrtKeyParameters(
             jcaPrivate.modulus,
             jcaPrivate.publicExponent,
@@ -232,6 +270,12 @@ class SshAgentSigningTest {
         return bcPrivate to (kp.public as RSAPublicKey)
     }
 
+    private fun generateJcaRsaKeyPair(): java.security.KeyPair {
+        val kpg = KeyPairGenerator.getInstance("RSA")
+        kpg.initialize(2048, SecureRandom())
+        return kpg.generateKeyPair()
+    }
+
     /**
      * Serializes an Ed25519 private key to OpenSSH PEM format
      * for use with signWithPrivateKey.
@@ -243,6 +287,15 @@ class SshAgentSigningTest {
             appendLine("-----BEGIN OPENSSH PRIVATE KEY-----")
             b64.chunked(70).forEach { appendLine(it) }
             appendLine("-----END OPENSSH PRIVATE KEY-----")
+        }
+    }
+
+    private fun toPkcs8PrivateKeyPem(privateKey: PrivateKey): String {
+        val b64 = Base64.toBase64String(privateKey.encoded)
+        return buildString {
+            appendLine("-----BEGIN PRIVATE KEY-----")
+            b64.chunked(70).forEach { appendLine(it) }
+            appendLine("-----END PRIVATE KEY-----")
         }
     }
 }

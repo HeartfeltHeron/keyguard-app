@@ -43,6 +43,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
@@ -820,6 +821,14 @@ private fun SshKeyField(
                     }
                 },
             )
+            IconButton(
+                onClick = state.onImport,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.FileUpload,
+                    contentDescription = stringResource(Res.string.ssh_key_import_title),
+                )
+            }
         },
         enabled = true,
     )

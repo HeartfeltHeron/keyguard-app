@@ -75,9 +75,15 @@ import com.artemchep.keyguard.common.model.creditCards
 import com.artemchep.keyguard.common.model.fileName
 import com.artemchep.keyguard.common.model.fileSize
 import com.artemchep.keyguard.common.model.titleH
+import com.artemchep.keyguard.common.service.crypto.SshKeyImportError
+import com.artemchep.keyguard.common.service.crypto.SshKeyImportRequest
+import com.artemchep.keyguard.common.service.crypto.SshKeyImportResult
+import com.artemchep.keyguard.common.service.crypto.SshKeyImportService
 import com.artemchep.keyguard.common.service.clipboard.ClipboardService
 import com.artemchep.keyguard.common.service.googleauthenticator.OtpMigrationService
 import com.artemchep.keyguard.common.service.logging.LogRepository
+import com.artemchep.keyguard.common.service.text.TextService
+import com.artemchep.keyguard.common.service.text.readFromFileAsText
 import com.artemchep.keyguard.common.usecase.AddCipher
 import com.artemchep.keyguard.common.usecase.CipherUnsecureUrlCheck
 import com.artemchep.keyguard.common.usecase.CopyText
@@ -169,6 +175,7 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.scan
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import kotlin.time.Clock
 import kotlin.time.Instant
 import kotlinx.serialization.SerialName
@@ -194,6 +201,8 @@ fun produceAddScreenState(
         getTotpCode = instance(),
         getGravatarUrl = instance(),
         getMarkdown = instance(),
+        textService = instance(),
+        sshKeyImportService = instance(),
         logRepository = instance(),
         clipboardService = instance(),
         otpMigrationService = instance(),
@@ -225,6 +234,8 @@ fun produceAddScreenState(
     getTotpCode: GetTotpCode,
     getGravatarUrl: GetGravatarUrl,
     getMarkdown: GetMarkdown,
+    textService: TextService,
+    sshKeyImportService: SshKeyImportService,
     logRepository: LogRepository,
     clipboardService: ClipboardService,
     otpMigrationService: OtpMigrationService,
@@ -247,6 +258,7 @@ fun produceAddScreenState(
 ) {
     val copyText = copy(clipboardService)
     val markdown = getMarkdown().first()
+    val filePickerEvents = EventFlow<FilePickerIntent<*>>()
 
     val ownershipFlow = produceOwnershipFlow(
         args = args,
@@ -316,6 +328,10 @@ fun produceAddScreenState(
     )
     val sshKeyHolder = produceSshKeyState(
         args = args,
+        textService = textService,
+        sshKeyImportService = sshKeyImportService,
+        showMessage = showMessage,
+        filePickerIntentSink = filePickerEvents,
     )
 
     val typeFlow = kotlin.run {
@@ -326,10 +342,8 @@ fun produceAddScreenState(
         flowOf(initialValue)
     }
 
-    val filePickerIntentSink = EventFlow<FilePickerIntent<*>>()
-
     val sideEffects = AddState.SideEffects(
-        filePickerIntentFlow = filePickerIntentSink,
+        filePickerIntentFlow = filePickerEvents,
     )
 
     val passkeysFactories = kotlin.run {
@@ -485,7 +499,7 @@ fun produceAddScreenState(
                             add("attachment", model)
                         }
                     }
-                    filePickerIntentSink.emit(intent)
+                    filePickerEvents.emit(intent)
                 },
             )
             val item = AddStateItem.Add(
@@ -3409,10 +3423,15 @@ data class KeyPairDecor2(
 data class KeyPairDecor2Brr(
     val keyPair: KeyPairDecor2? = null,
     val onChange: (KeyPair) -> Unit,
+    val onImport: () -> Unit,
 )
 
 private suspend fun RememberStateFlowScope.produceSshKeyState(
     args: AddRoute.Args,
+    textService: TextService,
+    sshKeyImportService: SshKeyImportService,
+    showMessage: ShowMessage,
+    filePickerIntentSink: EventFlow<FilePickerIntent<*>>,
 ): TmpSshKey {
     val prefix = "sshKey"
 
@@ -3434,19 +3453,130 @@ private suspend fun RememberStateFlowScope.produceSshKeyState(
                 fingerprint = args.keyPair?.publicKey?.fingerprint ?: args.initialValue?.sshKey?.fingerprint ?: "",
             )
         }
+
+        suspend fun importKey(
+            fileName: String?,
+            content: String,
+            passphrase: String?,
+            // callbacks
+            onNeedsPassphrase: suspend (SshKeyImportResult.NeedsPassphrase) -> Unit,
+        ) = when (
+            val result = sshKeyImportService.import(
+                SshKeyImportRequest(
+                    content = content,
+                    fileName = fileName,
+                    passphrase = passphrase,
+                ),
+            )
+        ) {
+            is SshKeyImportResult.Success -> {
+                val msg = ToastMessage(
+                    type = ToastMessage.Type.SUCCESS,
+                    title = translate(Res.string.ssh_key_import_passphrase_title),
+                )
+                showMessage.copy(msg)
+                // success!
+                sink.value = result.keyPair.toDecor()
+            }
+
+            is SshKeyImportResult.NeedsPassphrase -> {
+                // Redirect to a next flow or
+                // exit there!
+                onNeedsPassphrase(result)
+            }
+
+            is SshKeyImportResult.Error -> {
+                val msg = createLocalizedSshKeyImportErrorToast(result.reason)
+                showMessage.copy(msg)
+            }
+        }
+
+        suspend fun onImportKeyWithPassphrase(
+            result: SshKeyImportResult.NeedsPassphrase,
+            fileName: String?,
+            content: String,
+        ) {
+            val passphraseTitle = translate(Res.string.ssh_key_import_passphrase_title)
+            val passphraseHint = translate(Res.string.ssh_key_import_passphrase_hint)
+
+            val intent = createConfirmationDialogIntent(
+                item = ConfirmationRoute.Args.Item.StringItem(
+                    key = "$id.passphrase",
+                    title = passphraseTitle,
+                    hint = passphraseHint,
+                    type = ConfirmationRoute.Args.Item.StringItem.Type.Password,
+                    canBeEmpty = false,
+                ),
+                title = translate(Res.string.ssh_key_import_passphrase_dialog_title),
+                message = translate(
+                    Res.string.ssh_key_import_passphrase_dialog_message,
+                    result.formatLabel,
+                ),
+            ) { passphrase ->
+                appScope.launch {
+                    importKey(
+                        content = content,
+                        fileName = fileName,
+                        passphrase = passphrase,
+                        // callbacks
+                        onNeedsPassphrase = {
+                            // show error message
+                            val msg = createLocalizedSshKeyImportPassphraseErrorToast()
+                            showMessage.copy(msg)
+                        },
+                    )
+                }
+            }
+            navigate(intent)
+        }
+
+        fun onImportKey() {
+            val intent = FilePickerIntent.OpenDocument(
+                mimeTypes = FilePickerIntent.mimeTypesAll,
+            ) { info ->
+                if (info == null) {
+                    return@OpenDocument
+                }
+
+                appScope.launch {
+                    val content = kotlin.runCatching {
+                        val uri = info.uri.toString()
+                        textService.readFromFileAsText(uri)
+                    }.getOrElse {
+                        val msg = createLocalizedSshKeyImportReadErrorToast()
+                        showMessage.copy(msg)
+                        return@launch
+                    }
+
+                    val fileName = info.name
+                    importKey(
+                        content = content,
+                        fileName = fileName,
+                        passphrase = null,
+                        // callbacks
+                        onNeedsPassphrase = { result ->
+                            // redirect to a next flow
+                            onImportKeyWithPassphrase(
+                                result = result,
+                                fileName = fileName,
+                                content = content,
+                            )
+                        },
+                    )
+                }
+            }
+            filePickerIntentSink.emit(intent)
+        }
+
         val stateItem = LocalStateItem<KeyPairDecor2Brr, CreateRequest>(
             flow = sink
                 .map { value ->
                     KeyPairDecor2Brr(
                         keyPair = value,
                         onChange = {
-                            val new = KeyPairDecor2(
-                                privateKey = it.privateKey.ssh,
-                                publicKey = it.publicKey.ssh,
-                                fingerprint = it.publicKey.fingerprint,
-                            )
-                            sink.value = new
+                            sink.value = it.toDecor()
                         },
+                        onImport = ::onImportKey,
                     )
                 }
                 .persistingStateIn(
@@ -3456,6 +3586,7 @@ private suspend fun RememberStateFlowScope.produceSshKeyState(
                         onChange = {
                             // Do nothing
                         },
+                        onImport = :: onImportKey,
                     ),
                 ),
             populator = { state ->
@@ -3490,6 +3621,52 @@ private suspend fun RememberStateFlowScope.produceSshKeyState(
         ),
     )
 }
+
+suspend fun TranslatorScope.createLocalizedSshKeyImportErrorToast(
+    reason: SshKeyImportError,
+): ToastMessage = when (reason) {
+    SshKeyImportError.UnsupportedFormat -> createSshKeyImportToast(
+        title = translate(Res.string.ssh_key_import_failed_title),
+        text = translate(Res.string.ssh_key_import_error_unsupported_format),
+    )
+    SshKeyImportError.UnsupportedAlgorithm -> createSshKeyImportToast(
+        title = translate(Res.string.ssh_key_import_failed_title),
+        text = translate(Res.string.ssh_key_import_error_unsupported_algorithm),
+    )
+    SshKeyImportError.InvalidPassphrase -> createSshKeyImportToast(
+        title = translate(Res.string.ssh_key_import_failed_title),
+        text = translate(Res.string.ssh_key_import_error_invalid_passphrase),
+    )
+    SshKeyImportError.MalformedKey -> createSshKeyImportToast(
+        title = translate(Res.string.ssh_key_import_failed_title),
+        text = translate(Res.string.ssh_key_import_error_malformed_key),
+    )
+}
+
+suspend fun TranslatorScope.createLocalizedSshKeyImportReadErrorToast(): ToastMessage = createSshKeyImportToast(
+    title = translate(Res.string.ssh_key_import_failed_title),
+    text = translate(Res.string.ssh_key_import_error_read),
+)
+
+suspend fun TranslatorScope.createLocalizedSshKeyImportPassphraseErrorToast(): ToastMessage = createSshKeyImportToast(
+    title = translate(Res.string.ssh_key_import_failed_title),
+    text = translate(Res.string.ssh_key_import_error_passphrase_required),
+)
+
+private fun createSshKeyImportToast(
+    title: String = "Failed to import SSH key",
+    text: String,
+): ToastMessage = ToastMessage(
+    type = ToastMessage.Type.ERROR,
+    title = title,
+    text = text,
+)
+
+private fun KeyPair.toDecor() = KeyPairDecor2(
+    privateKey = privateKey.ssh,
+    publicKey = publicKey.ssh,
+    fingerprint = publicKey.fingerprint,
+)
 
 suspend fun <Request> RememberStateFlowScope.createItem(
     prefix: String,
