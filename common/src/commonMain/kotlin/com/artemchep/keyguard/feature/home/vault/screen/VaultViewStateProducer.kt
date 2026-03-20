@@ -823,6 +823,7 @@ fun vaultViewScreenState(
                     appScope.launch {
                         val code = getTotpCode(totpField)
                             .firstOrNull()
+                            ?.getOrNull()
                             ?.code
                         if (code != null) {
                             val copyType = CopyText.Type.OTP
@@ -1784,47 +1785,54 @@ private fun RememberStateFlowScope.oh(
         if (cipherLoginTotp != null) {
             val sharing = SharingStarted.WhileSubscribed(1000L)
             val localStateFlow = getTotpCode(cipherLoginTotp.token)
-                .map {
-                    // Format the totp code, so it's easier to
-                    // read for the user.
-                    val codes = it.formatCode2()
-                    val dropdown = buildContextItems {
-                        section {
-                            this += copy.FlatItemAction(
-                                title = Res.string.copy_otp_code.wrap(),
-                                value = it.code,
-                            )
-                            this += copy.FlatItemAction(
-                                leading = iconSmall(Icons.Outlined.ContentCopy, Icons.Outlined.Key),
-                                title = Res.string.copy_otp_secret_code.wrap(),
-                                value = cipherLoginTotp.token.raw,
-                                hidden = true,
-                            ).verify(verify)
-                        }
-                        section {
-                            this += BarcodeTypeRoute.showInBarcodeTypeActionOrNull(
-                                translator = this@oh,
-                                data = cipherLoginTotp.token.raw,
-                                text = translate(Res.string.barcodetype_copy_otp_secret_code_note),
-                                single = true,
-                                navigate = ::navigate,
-                            )
-                            this += createShareAction(
-                                translator = this@oh,
-                                text = it.code,
-                                navigate = ::navigate,
+                .map { result ->
+                    when (result) {
+                        is Either.Left -> result
+                        is Either.Right -> {
+                            val code = result.value
+                            // Format the totp code, so it's easier to
+                            // read for the user.
+                            val codes = code.formatCode2()
+                            val dropdown = buildContextItems {
+                                section {
+                                    this += copy.FlatItemAction(
+                                        title = Res.string.copy_otp_code.wrap(),
+                                        value = code.code,
+                                    )
+                                    this += copy.FlatItemAction(
+                                        leading = iconSmall(Icons.Outlined.ContentCopy, Icons.Outlined.Key),
+                                        title = Res.string.copy_otp_secret_code.wrap(),
+                                        value = cipherLoginTotp.token.raw,
+                                        hidden = true,
+                                    ).verify(verify)
+                                }
+                                section {
+                                    this += BarcodeTypeRoute.showInBarcodeTypeActionOrNull(
+                                        translator = this@oh,
+                                        data = cipherLoginTotp.token.raw,
+                                        text = translate(Res.string.barcodetype_copy_otp_secret_code_note),
+                                        single = true,
+                                        navigate = ::navigate,
+                                    )
+                                    this += createShareAction(
+                                        translator = this@oh,
+                                        text = code.code,
+                                        navigate = ::navigate,
+                                    )
+                                }
+                            }
+
+                            Either.Right(
+                                VaultViewItem.Totp.LocalState(
+                                    codes = codes,
+                                    dropdown = dropdown,
+                                ),
                             )
                         }
                     }
-
-                    VaultViewItem.Totp.LocalState(
-                        codes = codes,
-                        dropdown = dropdown,
-                    )
                 }
-                .attempt()
-                .map { either ->
-                    either
+                .map { result ->
+                    result
                         .getOrElse {
                             VaultViewItem.Totp.LocalState(
                                 codes = persistentListOf(),

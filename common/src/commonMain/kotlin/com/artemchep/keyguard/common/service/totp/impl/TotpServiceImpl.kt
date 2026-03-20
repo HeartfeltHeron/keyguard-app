@@ -1,5 +1,9 @@
 package com.artemchep.keyguard.common.service.totp.impl
 
+import arrow.core.Either
+import com.artemchep.keyguard.common.exception.OtpCodeGenerationException
+import com.artemchep.keyguard.common.exception.OtpEmptySecretKeyException
+import com.artemchep.keyguard.common.exception.OtpInvalidSecretKeyException
 import com.artemchep.keyguard.common.model.CryptoHashAlgorithm
 import com.artemchep.keyguard.common.model.TotpCode
 import com.artemchep.keyguard.common.model.TotpToken
@@ -35,6 +39,20 @@ class TotpServiceImpl(
     )
 
     override fun generate(
+        token: TotpToken,
+        timestamp: Instant,
+        offset: Int,
+    ): Either<Throwable, TotpCode> = Either
+        .catch {
+            generateOrThrow(
+                token = token,
+                timestamp = timestamp,
+                offset = offset,
+            )
+        }
+        .mapLeft(::mapException)
+
+    private fun generateOrThrow(
         token: TotpToken,
         timestamp: Instant,
         offset: Int,
@@ -84,7 +102,7 @@ class TotpServiceImpl(
         timestamp: Instant,
         offset: Int,
     ): TotpCode {
-        val key = base32Service.decode(token.keyBase32)
+        val key = decodeSecretKey(token.keyBase32)
         val period = token.period
         val time = roundToPeriodInSeconds(timestamp, period) + offset
         // The resulting integer value of the code must have at most the required code
@@ -122,7 +140,7 @@ class TotpServiceImpl(
         token: TotpToken.HotpAuth,
         offset: Int,
     ): TotpCode {
-        val key = base32Service.decode(token.keyBase32)
+        val key = decodeSecretKey(token.keyBase32)
         val counter = token.counter + offset
         // The resulting integer value of the code must have at most the required code
         // digits. Therefore the binary value is reduced by calculating the modulo
@@ -153,7 +171,7 @@ class TotpServiceImpl(
         timestamp: Instant,
         offset: Int,
     ): TotpCode {
-        val key = base32Service.decode(token.keyBase32)
+        val key = decodeSecretKey(token.keyBase32)
         val period = token.period
         val time = roundToPeriodInSeconds(timestamp, period) + offset
 
@@ -221,6 +239,24 @@ class TotpServiceImpl(
         return binary.int
     }
 
+    private fun decodeSecretKey(
+        keyBase32: String,
+    ): ByteArray {
+        if (keyBase32.isBlank()) {
+            throw OtpEmptySecretKeyException()
+        }
+
+        val key = try {
+            base32Service.decode(keyBase32)
+        } catch (e: Throwable) {
+            throw OtpInvalidSecretKeyException(e)
+        }
+        if (key.isEmpty()) {
+            throw OtpInvalidSecretKeyException()
+        }
+        return key
+    }
+
     @OptIn(ExperimentalStdlibApi::class)
     private fun generateMobileAuthCode(
         token: TotpToken.MobileAuth,
@@ -262,5 +298,14 @@ class TotpServiceImpl(
                 duration = with(Duration) { period.seconds },
             ),
         )
+    }
+
+    private fun mapException(
+        e: Throwable,
+    ): Throwable = when (e) {
+        is OtpEmptySecretKeyException -> e
+        is OtpInvalidSecretKeyException -> e
+        is OtpCodeGenerationException -> e
+        else -> OtpCodeGenerationException(e)
     }
 }

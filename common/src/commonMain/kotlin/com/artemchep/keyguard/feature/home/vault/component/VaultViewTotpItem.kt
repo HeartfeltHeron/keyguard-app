@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -46,13 +47,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import arrow.core.getOrElse
-import com.artemchep.keyguard.common.io.attempt
 import com.artemchep.keyguard.common.model.TotpCode
 import com.artemchep.keyguard.common.model.TotpToken
 import com.artemchep.keyguard.common.usecase.CopyText
 import com.artemchep.keyguard.common.usecase.GetTotpCodeWithOffset
 import com.artemchep.keyguard.feature.home.vault.model.VaultViewItem
+import com.artemchep.keyguard.res.Res
+import com.artemchep.keyguard.res.*
 import com.artemchep.keyguard.ui.AhContainer
 import com.artemchep.keyguard.ui.DisabledEmphasisAlpha
 import com.artemchep.keyguard.ui.ExpandedIfNotEmptyForRow
@@ -69,12 +70,15 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import org.jetbrains.compose.resources.stringResource
 import kotlin.time.Clock
 import org.kodein.di.compose.rememberInstance
 import kotlin.math.roundToInt
 
 private sealed interface VaultViewTotpItemBadgeState {
     data object Loading : VaultViewTotpItemBadgeState
+
+    data object Error : VaultViewTotpItemBadgeState
 
     data class Success(
         val codes: PersistentList<List<String>>,
@@ -227,7 +231,26 @@ fun VaultViewTotpBadge2(
                 bottom = 4.dp,
             )
             .then(contentModifier),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
+        // Draw an explicit error state. This should only happen if the
+        // TOTP token is invalid.
+        if (state is VaultViewTotpItemBadgeState.Error) {
+            Icon(
+                imageVector = Icons.Outlined.ErrorOutline,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+            )
+            Spacer(
+                modifier = Modifier
+                    .width(8.dp),
+            )
+            Text(
+                text = stringResource(Res.string.error_invalid_key),
+            )
+            return@Row
+        }
+
         VaultViewTotpCodeContent(
             totp = totpToken,
             codes = (state as? VaultViewTotpItemBadgeState.Success?)
@@ -353,6 +376,7 @@ private fun VaultViewTotpRemainderBadgeLayout(
 ) {
     val score = when (state) {
         is VaultViewTotpItemBadgeState.Loading -> null
+        is VaultViewTotpItemBadgeState.Error -> null
 
         is VaultViewTotpItemBadgeState.Success -> when (val counter = state.counter) {
             is VaultViewTotpItemBadgeState.Success.TimeBasedCounter -> counter.progress.coerceIn(
@@ -420,11 +444,13 @@ private fun produceTotpCode(
     val getTotpCode by rememberInstance<GetTotpCodeWithOffset>()
     return remember(totpToken, offset) {
         getTotpCode(totpToken, offset)
-            .flatMapLatest {
+            .flatMapLatest { result ->
+                val totpCode = result.getOrNull()
+                    ?: return@flatMapLatest flowOf(VaultViewTotpItemBadgeState.Error)
                 // Format the totp code, so it's easier to
                 // read for the user.
-                val codes = it.formatCode2()
-                when (val counter = it.counter) {
+                val codes = totpCode.formatCode2()
+                when (val counter = totpCode.counter) {
                     is TotpCode.TimeBasedCounter -> flow<VaultViewTotpItemBadgeState.Success> {
                         while (true) {
                             val now = Clock.System.now()
@@ -447,7 +473,7 @@ private fun produceTotpCode(
                             )
                             val s = VaultViewTotpItemBadgeState.Success(
                                 codes = codes,
-                                codeRaw = it.code,
+                                codeRaw = totpCode.code,
                                 counter = c,
                             )
                             emit(s)
@@ -465,20 +491,12 @@ private fun produceTotpCode(
                         )
                         val s = VaultViewTotpItemBadgeState.Success(
                             codes = codes,
-                            codeRaw = it.code,
+                            codeRaw = totpCode.code,
                             counter = c,
                         )
                         flowOf(s)
                     }
                 }
-
-            }
-            .attempt()
-            .map { either ->
-                either
-                    .getOrElse {
-                        null
-                    }
             }
     }.collectAsState(initial = VaultViewTotpItemBadgeState.Loading)
 }

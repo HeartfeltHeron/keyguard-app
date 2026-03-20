@@ -5,8 +5,12 @@ import com.artemchep.keyguard.common.model.TotpCode
 import com.artemchep.keyguard.common.model.TotpToken
 import com.artemchep.keyguard.common.service.clipboard.ClipboardService
 import com.artemchep.keyguard.common.usecase.GetTotpCode
+import com.artemchep.keyguard.common.exception.OtpCodeGenerationException
 import com.artemchep.keyguard.feature.navigation.NavigationController
 import com.artemchep.keyguard.feature.navigation.NavigationIntent
+import arrow.core.Either
+import arrow.core.left
+import arrow.core.right
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
@@ -103,18 +107,7 @@ class QuickSearchActionTest {
             actionType = QuickSearchActionType.CopyOtp,
             item = item,
             controller = RecordingNavigationController(this),
-            getTotpCode = object : GetTotpCode {
-                override fun invoke(p1: TotpToken): Flow<TotpCode> = flowOf(
-                    TotpCode(
-                        code = "123456",
-                        counter = TotpCode.TimeBasedCounter(
-                            timestamp = TEST_INSTANT,
-                            expiration = TEST_INSTANT + 30.seconds,
-                            duration = 30.seconds,
-                        ),
-                    ),
-                )
-            },
+            getTotpCode = successTotpCode("123456"),
             scope = this,
             onFinished = { finishedCalls += 1 },
         )
@@ -127,7 +120,7 @@ class QuickSearchActionTest {
     }
 
     @Test
-    fun `copy otp is a no op when no code is available`() = runTest {
+    fun `copy otp is a no op when code generation fails`() = runTest {
         val clipboard = RecordingClipboardService()
         val item = createVaultItem(
             id = "otp",
@@ -147,7 +140,8 @@ class QuickSearchActionTest {
             item = item,
             controller = RecordingNavigationController(this),
             getTotpCode = object : GetTotpCode {
-                override fun invoke(p1: TotpToken): Flow<TotpCode> = emptyFlow()
+                override fun invoke(p1: TotpToken): Flow<Either<Throwable, TotpCode>> =
+                    flowOf(OtpCodeGenerationException().left())
             },
             scope = this,
             onFinished = { finishedCalls += 1 },
@@ -188,7 +182,20 @@ class QuickSearchActionTest {
 }
 
 private data object EmptyGetTotpCode : GetTotpCode {
-    override fun invoke(p1: TotpToken): Flow<TotpCode> = emptyFlow()
+    override fun invoke(p1: TotpToken): Flow<Either<Throwable, TotpCode>> = emptyFlow()
+}
+
+private fun successTotpCode(code: String): GetTotpCode = object : GetTotpCode {
+    override fun invoke(p1: TotpToken): Flow<Either<Throwable, TotpCode>> = flowOf(
+        TotpCode(
+            code = code,
+            counter = TotpCode.TimeBasedCounter(
+                timestamp = TEST_INSTANT,
+                expiration = TEST_INSTANT + 30.seconds,
+                duration = 30.seconds,
+            ),
+        ).right(),
+    )
 }
 
 private class RecordingClipboardService : ClipboardService {

@@ -7,9 +7,11 @@ import androidx.compose.material.icons.outlined.CreditCard
 import androidx.compose.material.icons.outlined.Password
 import androidx.compose.material.icons.outlined.PermIdentity
 import androidx.compose.ui.graphics.Color
+import arrow.core.getOrElse
 import arrow.optics.optics
 import com.artemchep.keyguard.common.io.attempt
 import com.artemchep.keyguard.common.io.bind
+import com.artemchep.keyguard.common.io.flatten
 import com.artemchep.keyguard.common.io.ioEffect
 import com.artemchep.keyguard.common.io.toIO
 import com.artemchep.keyguard.common.usecase.GetTotpCode
@@ -26,6 +28,7 @@ import com.artemchep.keyguard.ui.icons.KeyguardNote
 import com.artemchep.keyguard.ui.icons.KeyguardSshKey
 import com.artemchep.keyguard.ui.icons.Stub
 import com.artemchep.keyguard.ui.icons.generateAccentColors
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlin.time.Instant
 
@@ -595,10 +598,14 @@ fun DSecret.get(
         AutofillHint.SMS_OTP -> null
         AutofillHint.EMAIL_OTP -> null
         AutofillHint.APP_OTP -> login?.totp?.token?.let {
-            getTotpCode(it)
+            val totpCodeResult = getTotpCode(it)
+                .first()
+            totpCodeResult
                 .map { it.code }
-                .toIO()
-                .bind()
+                // re-throw the exception
+                .getOrElse { e ->
+                    throw e
+                }
         }
 
         AutofillHint.NOT_APPLICABLE -> null

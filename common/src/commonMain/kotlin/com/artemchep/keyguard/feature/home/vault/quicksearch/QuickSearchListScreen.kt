@@ -799,6 +799,7 @@ internal fun performQuickSearchAction(
                 val code =
                     getTotpCode(resolvedAction.token)
                         .firstOrNull()
+                        ?.getOrNull()
                         ?.code
                         ?: return@launch
                 item.copyText.copy(

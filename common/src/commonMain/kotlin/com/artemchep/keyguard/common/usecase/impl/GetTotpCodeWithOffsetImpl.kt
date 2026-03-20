@@ -1,5 +1,6 @@
 package com.artemchep.keyguard.common.usecase.impl
 
+import arrow.core.Either
 import com.artemchep.keyguard.common.model.TotpCode
 import com.artemchep.keyguard.common.model.TotpToken
 import com.artemchep.keyguard.common.service.totp.TotpService
@@ -21,7 +22,7 @@ class GetTotpCodeWithOffsetImpl(
     override fun invoke(
         token: TotpToken,
         offset: Int,
-    ): Flow<TotpCode> = flow {
+    ): Flow<Either<Throwable, TotpCode>> = flow {
         while (true) {
             val now = Clock.System.now()
 
@@ -30,6 +31,11 @@ class GetTotpCodeWithOffsetImpl(
                 timestamp = now,
                 offset = 0,
             )
+            if (zeroCode is Either.Left) {
+                emit(zeroCode)
+                break
+            }
+            zeroCode as Either.Right<TotpCode>
             val code = if (offset != 0) {
                 totpService.generate(
                     token = token,
@@ -42,7 +48,7 @@ class GetTotpCodeWithOffsetImpl(
             emit(code)
             // We want to refresh the code based on the zero-code result, because
             // we do not know when the one with an offset will change.
-            when (val counter = zeroCode.counter) {
+            when (val counter = zeroCode.value.counter) {
                 is TotpCode.TimeBasedCounter -> {
                     // Wait for the code to expire, and then
                     // regenerate it.

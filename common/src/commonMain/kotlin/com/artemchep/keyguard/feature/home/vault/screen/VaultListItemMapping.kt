@@ -260,7 +260,9 @@ private suspend fun DSecret.createLogin(
                 onClick = {
                     getTotpCode(token)
                         .toIO()
-                        .effectTap { code ->
+                        .effectTap { result ->
+                            val code = result.getOrNull()
+                                ?: return@effectTap
                             copy.copy(
                                 text = code.code,
                                 hidden = false,
