@@ -223,6 +223,7 @@ fun Tar.installPackageDistributable(
         // their source mode was normalized by an upstream packaging step.
         eachFile {
             if (
+                name == "jspawnhelper" || // https://github.com/AChep/keyguard-app/issues/640#issuecomment-4111835953
                 name == "keyguard-ssh-agent" ||
                 name == "keyguard-lib"
             ) {
