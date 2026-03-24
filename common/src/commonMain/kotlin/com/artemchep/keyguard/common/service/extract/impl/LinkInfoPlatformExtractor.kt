@@ -33,6 +33,9 @@ class LinkInfoPlatformExtractor : LinkInfoExtractor<DSecret.Uri, LinkInfoPlatfor
             url.startsWith(PROTOCOL_IOS_APP, ignoreCase = true) ->
                 createIOSPlatform(uri)
 
+            url.startsWith(CMD_SCHEME_PREFIX, ignoreCase = true) ->
+                LinkInfoPlatform.Other
+
             url.startsWith(HTTP_SCHEME_PREFIX, ignoreCase = true) ||
                     url.startsWith(HTTPS_SCHEME_PREFIX, ignoreCase = true) ->
                 createWebPlatform(url)
