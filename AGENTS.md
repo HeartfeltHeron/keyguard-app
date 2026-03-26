@@ -8,23 +8,6 @@
 - Treat `androidApp`, `desktopApp`, and release/deployment config as higher-risk surfaces; only touch them when required.
 - Preserve existing architecture and naming patterns inside each feature area.
 
-## Repository Map
-
-- `:common`  
-  Shared Kotlin Multiplatform logic, Compose UI, feature routes/screens/state/state producers, use cases, services, SQLDelight schemas.
-- `:androidApp`  
-  Android application module, build flavors/build types, Android packaging and platform integration.
-- `:androidTest`  
-  Shared Android instrumentation test code and dependencies.
-- `:androidBenchmark`  
-  Macrobenchmark + baseline profile generation module targeting `:androidApp`.
-- `:desktopApp`  
-  Desktop application entrypoint and Compose desktop packaging/distribution.
-- `:desktopLibJvm`  
-  JVM-side desktop support that consumes artifacts from `:desktopLibNative`.
-- `:desktopLibNative`  
-  Kotlin/Native shared library builds for Linux/macOS/Windows used by desktop runtime integrations.
-
 ## Environment Baseline
 
 - Use JDK `21` to match CI setup defaults.
