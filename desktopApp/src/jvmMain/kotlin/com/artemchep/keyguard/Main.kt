@@ -349,16 +349,17 @@ fun main() {
             val showMessage by rememberInstance<ShowMessage>()
             val getSshAgentState = remember { getSshAgent() }
                 .collectAsState(false)
+            val getSshAgentStateValue = getSshAgentState.value
             LaunchedEffect(
                 sshAgentManager,
-                getSshAgentState.value,
+                getSshAgentStateValue,
             ) {
                 val binaryPath = sshAgentManager.defaultBinaryPath
                 if (binaryPath == null) {
                     sshAgentStatusService.set(SshAgentStatus.Unsupported)
                     return@LaunchedEffect
                 }
-                if (!getSshAgentState.value) {
+                if (!getSshAgentStateValue) {
                     sshAgentStatusService.set(SshAgentStatus.Stopped)
                     return@LaunchedEffect
                 }
