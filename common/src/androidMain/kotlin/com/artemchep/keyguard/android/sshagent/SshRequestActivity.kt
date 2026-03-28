@@ -220,7 +220,7 @@ internal class SshRequestActivity : BaseActivity() {
                         alpha = contentAlpha
                         translationY = contentTranslationY.toPx()
                     }
-                    .heightIn(max = 440.dp)
+                    .heightIn(max = 520.dp)
                     .widthIn(max = 380.dp)
                     .fillMaxWidth(0.9f)
                     .fillMaxHeight(0.9f)
