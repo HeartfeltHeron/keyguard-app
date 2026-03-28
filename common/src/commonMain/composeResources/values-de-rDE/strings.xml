@@ -315,6 +315,7 @@
     <string name="ciphers_action_change_folder_title">In Ordner verschieben</string>
     <string name="ciphers_action_change_name_title">Name ändern</string>
     <string name="ciphers_action_change_names_title">Namen ändern</string>
+    <string name="ciphers_action_change_tags_title">Tags ändern</string>
     <string name="ciphers_action_add_password_title">Passwort hinzufügen</string>
     <string name="ciphers_action_add_passwords_title">Passwörter hinzufügen</string>
     <string name="ciphers_action_change_password_title">Passwort ändern</string>
@@ -441,6 +442,19 @@
     <string name="ssh_key_action_save_unencrypted_private_key_saved_downloads_success_title">Unverschlüsselter privater Schlüssel in Downloads gespeichert</string>
     <string name="ssh_key_action_add_key_title">Schlüssel hinzufügen</string>
     <string name="ssh_key_action_replace_key_title">Schlüssel ersetzen</string>
+    <string name="ssh_key_import_title">SSH-Schlüssel importieren</string>
+    <string name="ssh_key_import_failed_title">SSH-Schlüssel konnte nicht importiert werden</string>
+    <string name="ssh_key_import_success_title">SSH-Schlüssel importiert</string>
+    <string name="ssh_key_import_error_unsupported_format">Nicht unterstütztes SSH-Privatschlüsselformat.</string>
+    <string name="ssh_key_import_error_unsupported_algorithm">Nur RSA und Ed25519 SSH-Schlüssel werden unterstützt.</string>
+    <string name="ssh_key_import_error_invalid_passphrase">Die SSH-Schlüssel-Phrase ist ungültig.</string>
+    <string name="ssh_key_import_error_malformed_key">Die SSH-Schlüsseldatei ist fehlerhaft.</string>
+    <string name="ssh_key_import_error_read">Die ausgewählte Datei konnte nicht gelesen werden.</string>
+    <string name="ssh_key_import_error_passphrase_required">Zum Entsperren dieses SSH-Schlüssels ist eine Passphrase erforderlich.</string>
+    <string name="ssh_key_import_passphrase_title">Passphrase</string>
+    <string name="ssh_key_import_passphrase_hint">Passphrase für SSH-Schlüssel eingeben</string>
+    <string name="ssh_key_import_passphrase_dialog_title">Passphrase für SSH-Schlüssel eingeben</string>
+    <string name="ssh_key_import_passphrase_dialog_message">Dieser <xliff:g id="format_label" example="OpenSSH">%1$s</xliff:g>-Schlüssel ist verschlüsselt.</string>
     <string name="selection_n_selected"><xliff:g id="size" example="15">%1$d</xliff:g> ausgewählt</string>
     <string name="copy">Kopieren</string>
     <string name="copy_value">Inhalt kopieren</string>
@@ -539,10 +553,12 @@
     <string name="error_invalid_email">Ungültige E-Mail</string>
     <string name="error_invalid_url">Ungültige URL</string>
     <string name="error_invalid_uri">Ungültige URI</string>
+    <string name="error_invalid_key">Ungültiger Schlüssel</string>
     <string name="error_invalid_card_number">Kartennummer ungültig</string>
     <string name="error_incorrect_password">Falsches Passwort</string>
     <string name="error_not_found">Nicht gefunden</string>
     <string name="error_otp_key_must_not_be_empty">Einmalkennwort darf nicht leer sein</string>
+    <string name="error_otp_key_is_invalid">Der geheime Schlüssel des Einmalpassworts ist ungültig</string>
     <string name="error_failed_file_already_exists">Datei konnte nicht erstellt werden. Das Ersetzen der existierenden Datei ist nicht erlaubt</string>
     <string name="error_failed_generate_kdf_hash_oom">Fehler beim Erstellen eines Schlüssels, nicht genügend Speicher. Bitte überprüfe die KDF-Server-Einstellungen.</string>
     <string name="error_failed_generate_otp_code">Fehler beim Generieren des Einmalpassworts</string>
@@ -730,7 +746,7 @@
     <string name="addsend_hide_email_title">E-Mail-Adresse ausblenden</string>
     <string name="addsend_max_access_count_note">Wenn aktiviert, können Benutzer nach Erreichen der maximalen Zugriffsanzahl nicht mehr auf dieses Element zugreifen.</string>
     <string name="addsend_auth_emails_label">E-Mail(s)</string>
-    <string name="addsend_auth_emails_placeholder">Comma-separated emails</string>
+    <string name="addsend_auth_emails_placeholder">Kommaseparierte E-Mails</string>
     <string name="addsend_auth_emails_note">Empfänger müssen nach dem Öffnen des Links eine einmalige E-Mail-Verifizierung durchführen.</string>
     <string name="addaccount_promo_title">Dein Tresor ist leer. Verbinde einen Account, um loszulegen:</string>
     <string name="addaccount_promo_features">Möchtest du das Beste aus deiner Erfahrung herausholen? Nachfolgend haben wir alle wichtigen Funktionen der App für Sie zusammengefasst. Sieh sie dir an und schau wie sie dir helfen können.</string>
@@ -851,14 +867,27 @@
     <string name="ssh_agent_setup_step_2_text">Verweisen Sie Ihren SSH-Client auf den Socket-Pfad von Keyguard.</string>
     <string name="ssh_agent_setup_linux_socket_fallback_note">Alternativer Pfad: Verwenden Sie diesen, wenn XDG_RUNTIME_DIR in Ihrer Sitzung nicht verfügbar ist.</string>
     <string name="ssh_agent_setup_option_env_tab">Env</string>
-    <string name="ssh_agent_setup_option_identityagent_tab">Config</string>
+    <string name="ssh_agent_setup_option_identityagent_tab">Konfiguration</string>
     <string name="ssh_agent_setup_option_env_label">Setzen Sie SSH_AUTH_SOCK auf den Socket-Pfad von Keyguard.</string>
     <string name="ssh_agent_setup_option_identityagent_label">Setzen Sie IdentityAgent in Ihrer SSH-Konfiguration.</string>
     <string name="ssh_agent_setup_step_3_title">3. Überprüfen</string>
     <string name="ssh_agent_setup_step_3_text">Führen Sie diese Befehle in derselben Shell-Sitzung aus, in der Sie den Agenten konfiguriert haben.</string>
     <string name="ssh_agent_setup_windows_title">Windows</string>
     <string name="ssh_agent_setup_windows_text">Die aktuelle Desktop-SSH-Agent-Laufzeitumgebung von Keyguard ist vorerst nicht unter Windows verfügbar, daher dienen die Einrichtungsschritte hier nur zu Informationszwecken.</string>
-    <string name="ssh_agent_request_approval_sign_title">SSH Signing Request</string>
+    <string name="ssh_agent_setup_android_termux_text">On Android, Keyguard provides the SSH agent via a dedicated helper package. Enable SSH agent in Keyguard, install and configure the package, and approve requests when your SSH client connects.</string>
+    <string name="ssh_agent_setup_android_termux_step_1_title">Install Termux</string>
+    <string name="ssh_agent_setup_android_termux_step_1_text">Termux is an Android terminal application and Linux environment.</string>
+    <string name="ssh_agent_setup_android_termux_step_2_title">Install package</string>
+    <string name="ssh_agent_setup_android_termux_step_2_text">Open Termux and install the package from a custom APT repository:</string>
+    <string name="ssh_agent_setup_android_termux_step_3_title">Configure your SSH client</string>
+    <string name="ssh_agent_setup_android_termux_step_3_shell_current">Start the package and export the socket into your current shell:</string>
+    <string name="ssh_agent_setup_android_termux_step_3_shell_startup">If you want to auto-start the package every time Termux starts, add it to your shell startup file:</string>
+    <string name="ssh_agent_setup_android_termux_step_4_title">Verify</string>
+    <string name="ssh_agent_setup_android_termux_step_4_text">Run these commands in the same shell session where you configured the agent.</string>
+    <string name="ssh_agent_setup_android_how_does_it_work_title">How does it work</string>
+    <string name="ssh_agent_setup_android_how_does_it_work_1">The SSH agent receives requests from SSH tools, then forwards them to the Keyguard app instead of handling the sensitive operation itself.</string>
+    <string name="ssh_agent_setup_android_how_does_it_work_2">The communication is done in two steps: first the agent signals the app to start a session, then both sides connect over a local TCP channel and exchange encrypted messages. The SSH agent acts as a relay, while the Keyguard app performs the actual operations.</string>
+    <string name="ssh_agent_request_approval_sign_title">SSH-Signierungsanfrage</string>
     <string name="ssh_agent_request_approval_sign_message_known_app"><xliff:g id="who" example="Keyguard">%1$s</xliff:g> möchte den folgenden SSH-Schlüssel verwenden, um Daten zu signieren:</string>
     <string name="ssh_agent_request_approval_sign_message_unknown_app">Eine Anwendung möchte den folgenden SSH-Schlüssel verwenden, um Daten zu signieren:</string>
     <string name="ssh_client_request">SSH-Client-Anfrage</string>

@@ -213,7 +213,7 @@
     <!-- Remember me to not have to enter OTP code second time -->
     <string name="remember_me">Запам'ятати мене</string>
     <!-- An Archive screen -->
-    <string name="archive">Archive</string>
+    <string name="archive">Архів</string>
     <!-- A Trash screen -->
     <string name="trash">Кошик</string>
     <!-- To download something -->
@@ -315,6 +315,7 @@
     <string name="ciphers_action_change_folder_title">Перемістити в теку</string>
     <string name="ciphers_action_change_name_title">Змінити назву</string>
     <string name="ciphers_action_change_names_title">Змінити назви</string>
+    <string name="ciphers_action_change_tags_title">Змінити мітки</string>
     <string name="ciphers_action_add_password_title">Додати пароль</string>
     <string name="ciphers_action_add_passwords_title">Додати паролі</string>
     <string name="ciphers_action_change_password_title">Змінити пароль</string>
@@ -441,6 +442,19 @@
     <string name="ssh_key_action_save_unencrypted_private_key_saved_downloads_success_title">Незашифрований секретний ключ збережено в теку Завантаження</string>
     <string name="ssh_key_action_add_key_title">Додати ключі</string>
     <string name="ssh_key_action_replace_key_title">Замінити ключі</string>
+    <string name="ssh_key_import_title">Імпортувати SSH ключ</string>
+    <string name="ssh_key_import_failed_title">Не вдалося імпортувати SSH ключ</string>
+    <string name="ssh_key_import_success_title">Imported SSH key</string>
+    <string name="ssh_key_import_error_unsupported_format">Unsupported SSH private key format.</string>
+    <string name="ssh_key_import_error_unsupported_algorithm">Only RSA and Ed25519 SSH keys are supported.</string>
+    <string name="ssh_key_import_error_invalid_passphrase">The SSH key passphrase is invalid.</string>
+    <string name="ssh_key_import_error_malformed_key">The SSH key file is malformed.</string>
+    <string name="ssh_key_import_error_read">Unable to read the selected file.</string>
+    <string name="ssh_key_import_error_passphrase_required">A passphrase is required to unlock this SSH key.</string>
+    <string name="ssh_key_import_passphrase_title">Парольна фраза</string>
+    <string name="ssh_key_import_passphrase_hint">Enter SSH key passphrase</string>
+    <string name="ssh_key_import_passphrase_dialog_title">Enter SSH key passphrase</string>
+    <string name="ssh_key_import_passphrase_dialog_message">This <xliff:g id="format_label" example="OpenSSH">%1$s</xliff:g> key is encrypted.</string>
     <string name="selection_n_selected"><xliff:g id="size" example="15">%1$d</xliff:g> вибрано</string>
     <string name="copy">Скопіювати</string>
     <string name="copy_value">Скопіювати значення</string>
@@ -539,10 +553,12 @@
     <string name="error_invalid_email">Невірна адреса ел. пошти</string>
     <string name="error_invalid_url">Некоректна URL-адреса</string>
     <string name="error_invalid_uri">Некоректний URI</string>
+    <string name="error_invalid_key">Некоректний ключ</string>
     <string name="error_invalid_card_number">Недійсний номер картки</string>
     <string name="error_incorrect_password">Невірний пароль</string>
     <string name="error_not_found">Не знайдено</string>
     <string name="error_otp_key_must_not_be_empty">Секретний ключ одноразового пароля не може бути порожнім</string>
+    <string name="error_otp_key_is_invalid">One-time password's secret key is invalid</string>
     <string name="error_failed_file_already_exists">Не вдалося створити файл. Заміна наявного файлу заборонена</string>
     <string name="error_failed_generate_kdf_hash_oom">Не вдалося створити ключ, не вистачає пам'яті. Перевірте KDF налаштування сервера.</string>
     <string name="error_failed_generate_otp_code">Помилка генерації одноразового коду</string>
@@ -729,8 +745,8 @@
     <string name="addsend_hide_text_by_default_title">При доступі до відправлення приховувати текст</string>
     <string name="addsend_hide_email_title">Приховати адресу електронної пошти</string>
     <string name="addsend_max_access_count_note">Якщо встановлено, користувачі більше не зможуть отримати доступ до цього відправлення після досягнення максимальної кількості відвідувань.</string>
-    <string name="addsend_auth_emails_label">Email(s)</string>
-    <string name="addsend_auth_emails_placeholder">Comma-separated emails</string>
+    <string name="addsend_auth_emails_label">Ел. пошта(и)</string>
+    <string name="addsend_auth_emails_placeholder">Електронні пошти, розділені комами</string>
     <string name="addsend_auth_emails_note">Після відкриття посилання одержувачам потрібно буде пройти одноразове підтвердження електронної пошти.</string>
     <string name="addaccount_promo_title">У вашому сховищі порожньо. Додайте обліковий запис, щоб розпочати:</string>
     <string name="addaccount_promo_features">Хочете повною мірою скористатися всіма можливостями? Нижче ми виклали огляд основних функцій додатку. Подивіться, щоб дізнатися, як вони можуть вам допомогти.</string>
@@ -858,6 +874,19 @@
     <string name="ssh_agent_setup_step_3_text">Run these commands in the same shell session where you configured the agent.</string>
     <string name="ssh_agent_setup_windows_title">Windows</string>
     <string name="ssh_agent_setup_windows_text">SSH-агент поки що недоступний для Windows, тому налаштування тут наведені лише для ознайомлення.</string>
+    <string name="ssh_agent_setup_android_termux_text">On Android, Keyguard provides the SSH agent via a dedicated helper package. Enable SSH agent in Keyguard, install and configure the package, and approve requests when your SSH client connects.</string>
+    <string name="ssh_agent_setup_android_termux_step_1_title">Install Termux</string>
+    <string name="ssh_agent_setup_android_termux_step_1_text">Termux is an Android terminal application and Linux environment.</string>
+    <string name="ssh_agent_setup_android_termux_step_2_title">Install package</string>
+    <string name="ssh_agent_setup_android_termux_step_2_text">Open Termux and install the package from a custom APT repository:</string>
+    <string name="ssh_agent_setup_android_termux_step_3_title">Configure your SSH client</string>
+    <string name="ssh_agent_setup_android_termux_step_3_shell_current">Start the package and export the socket into your current shell:</string>
+    <string name="ssh_agent_setup_android_termux_step_3_shell_startup">If you want to auto-start the package every time Termux starts, add it to your shell startup file:</string>
+    <string name="ssh_agent_setup_android_termux_step_4_title">Verify</string>
+    <string name="ssh_agent_setup_android_termux_step_4_text">Run these commands in the same shell session where you configured the agent.</string>
+    <string name="ssh_agent_setup_android_how_does_it_work_title">How does it work</string>
+    <string name="ssh_agent_setup_android_how_does_it_work_1">The SSH agent receives requests from SSH tools, then forwards them to the Keyguard app instead of handling the sensitive operation itself.</string>
+    <string name="ssh_agent_setup_android_how_does_it_work_2">The communication is done in two steps: first the agent signals the app to start a session, then both sides connect over a local TCP channel and exchange encrypted messages. The SSH agent acts as a relay, while the Keyguard app performs the actual operations.</string>
     <string name="ssh_agent_request_approval_sign_title">Запит на підпис від SSH клієнта</string>
     <string name="ssh_agent_request_approval_sign_message_known_app"><xliff:g id="who" example="Keyguard">%1$s</xliff:g> хоче використати цей SSH-ключ для підпису даних:</string>
     <string name="ssh_agent_request_approval_sign_message_unknown_app">Застосунок хоче використати цей SSH-ключ для підпису даних:</string>

@@ -315,6 +315,7 @@
     <string name="ciphers_action_change_folder_title">Mover para pasta</string>
     <string name="ciphers_action_change_name_title">Alterar nome</string>
     <string name="ciphers_action_change_names_title">Alterar nomes</string>
+    <string name="ciphers_action_change_tags_title">Alterar etiquetas</string>
     <string name="ciphers_action_add_password_title">Adicionar palavra-passe</string>
     <string name="ciphers_action_add_passwords_title">Adicionar palavras-passe</string>
     <string name="ciphers_action_change_password_title">Alterar palavra-passe</string>
@@ -441,6 +442,19 @@
     <string name="ssh_key_action_save_unencrypted_private_key_saved_downloads_success_title">Chave privada desencriptada guardada nas transferências</string>
     <string name="ssh_key_action_add_key_title">Adicionar chaves</string>
     <string name="ssh_key_action_replace_key_title">Substituir chaves</string>
+    <string name="ssh_key_import_title">Importar chave SSH</string>
+    <string name="ssh_key_import_failed_title">Falha ao importar chave SSH</string>
+    <string name="ssh_key_import_success_title">Chave SSH importada</string>
+    <string name="ssh_key_import_error_unsupported_format">Formato de chave privada SSH não suportado.</string>
+    <string name="ssh_key_import_error_unsupported_algorithm">Apenas chaves SSH, RSA e Ed25519 são suportadas.</string>
+    <string name="ssh_key_import_error_invalid_passphrase">A frase-chave da chave SSH é inválida.</string>
+    <string name="ssh_key_import_error_malformed_key">O ficheiro de chave SSH está corrompido.</string>
+    <string name="ssh_key_import_error_read">Não foi possível ler o ficheiro selecionado.</string>
+    <string name="ssh_key_import_error_passphrase_required">É necessária uma frase-chave para desbloquear esta chave SSH.</string>
+    <string name="ssh_key_import_passphrase_title">Frase-chave</string>
+    <string name="ssh_key_import_passphrase_hint">Introduza a frase-chave da chave SSH</string>
+    <string name="ssh_key_import_passphrase_dialog_title">Introduza a frase-chave da chave SSH</string>
+    <string name="ssh_key_import_passphrase_dialog_message">Esta chave <xliff:g id="format_label" example="OpenSSH">%1$s</xliff:g> é encriptada.</string>
     <string name="selection_n_selected"><xliff:g id="size" example="15">%1$d</xliff:g> selecionado</string>
     <string name="copy">Copiar</string>
     <string name="copy_value">Copiar valor</string>
@@ -539,10 +553,12 @@
     <string name="error_invalid_email">E-mail inválido</string>
     <string name="error_invalid_url">Endereço inválido</string>
     <string name="error_invalid_uri">URI inválido</string>
+    <string name="error_invalid_key">Chave inválida</string>
     <string name="error_invalid_card_number">Número de cartão inválido</string>
     <string name="error_incorrect_password">Palavra-passe incorreta</string>
     <string name="error_not_found">Não encontrado</string>
     <string name="error_otp_key_must_not_be_empty">A chave secreta da palavra-passe única não pode estar vazia</string>
+    <string name="error_otp_key_is_invalid">A chave secreta da palavra-passe de utilização única é inválida</string>
     <string name="error_failed_file_already_exists">Falha ao criar o ficheiro. Não é permitido substituir um ficheiro existente</string>
     <string name="error_failed_generate_kdf_hash_oom">Falha ao criar chave, sem memória. Por favor, verifique as configurações do seu servidor KDF.</string>
     <string name="error_failed_generate_otp_code">Falha ao gerar código OTP</string>
@@ -859,6 +875,19 @@
     <string name="ssh_agent_setup_step_3_text">Execute estes comandos na mesma sessão de shell em que configurou o agente.</string>
     <string name="ssh_agent_setup_windows_title">Windows</string>
     <string name="ssh_agent_setup_windows_text">O ambiente de execução atual do agente SSH para ambiente de trabalho do Keyguard ainda não está disponível para Windows, pelo que a configuração aqui apresentada é apenas para fins informativos.</string>
+    <string name="ssh_agent_setup_android_termux_text">No Android, o Keyguard fornece o agente SSH através de um pacote auxiliar dedicado. Active o agente SSH no Keyguard, instale e configure o pacote e aprove os pedidos quando o seu cliente SSH se ligar.</string>
+    <string name="ssh_agent_setup_android_termux_step_1_title">Instalar Termux</string>
+    <string name="ssh_agent_setup_android_termux_step_1_text">O Termux é uma aplicação de terminal para Android e um ambiente Linux.</string>
+    <string name="ssh_agent_setup_android_termux_step_2_title">Instalar pacote</string>
+    <string name="ssh_agent_setup_android_termux_step_2_text">Abra o Termux e instale o pacote a partir de um repositório APT personalizado:</string>
+    <string name="ssh_agent_setup_android_termux_step_3_title">Configure o seu cliente SSH</string>
+    <string name="ssh_agent_setup_android_termux_step_3_shell_current">Inicie o pacote e exporte o socket para o seu shell atual:</string>
+    <string name="ssh_agent_setup_android_termux_step_3_shell_startup">Se pretender que o pacote seja iniciado automaticamente sempre que o Termux for iniciado, adicione-o ao seu ficheiro de arranque da shell:</string>
+    <string name="ssh_agent_setup_android_termux_step_4_title">Verificar</string>
+    <string name="ssh_agent_setup_android_termux_step_4_text">Execute estes comandos na mesma sessão de shell em que configurou o agente.</string>
+    <string name="ssh_agent_setup_android_how_does_it_work_title">Como funciona</string>
+    <string name="ssh_agent_setup_android_how_does_it_work_1">O agente SSH recebe pedidos de ferramentas SSH e encaminha-os para a aplicação Keyguard, em vez de lidar com a operação sensível por conta própria.</string>
+    <string name="ssh_agent_setup_android_how_does_it_work_2">A comunicação é feita em dois passos: primeiro, o agente sinaliza à aplicação para iniciar uma sessão, em seguida, ambos os lados ligam-se através de um canal TCP local e trocam mensagens encriptadas. O agente SSH atua como intermediário, enquanto a aplicação Keyguard executa as operações propriamente ditas.</string>
     <string name="ssh_agent_request_approval_sign_title">Pedido de assinatura SSH</string>
     <string name="ssh_agent_request_approval_sign_message_known_app"><xliff:g id="who" example="Keyguard">%1$s</xliff:g> pretende utilizar a seguinte chave SSH para assinar dados:</string>
     <string name="ssh_agent_request_approval_sign_message_unknown_app">Uma aplicação deseja utilizar a seguinte chave SSH para assinar dados:</string>
@@ -1050,7 +1079,7 @@
     <string name="contactus_header_title">Contacte-nos</string>
     <string name="contactus_message_label">A sua mensagem</string>
     <string name="contactus_english_note">Use Inglês para garantir que o seu relato não fique mal entendido.</string>
-    <string name="contactus_thanks_note">Agradecemos o tempo que você gastou para nos enviar uma mensagem. A sua mensagem vai directamente para nós e nós a utilizamos para solucionar problemas, fazer com que o produto melhore e corrigir problemas. Embora não possamos responder a todos os relatórios, estamos analisando e trabalhando em melhorias &amp; corrigindo problemas o mais rápido possível.</string>
+    <string name="contactus_thanks_note">Agradecemos o tempo que dedicou para nos enviar uma mensagem. A sua mensagem chega-nos diretamente e é utilizada para solucionar problemas, melhorar os nossos produtos e corrigir falhas. Embora não seja possível responder a todos os relatos, estamos a analisar e a trabalhar em melhorias &amp; e correções o mais rapidamente possível.</string>
     <string name="account_main_header_title">Contas</string>
     <string name="account_main_add_account_title">Adicionar conta</string>
     <string name="team_header_title">Equipa responsável pela aplicação</string>
