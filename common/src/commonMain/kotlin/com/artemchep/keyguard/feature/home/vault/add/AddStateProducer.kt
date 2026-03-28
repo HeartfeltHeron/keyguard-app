@@ -2178,17 +2178,34 @@ private suspend fun RememberStateFlowScope.produceOwnershipFlow(
             is FolderInfo.Id -> {
                 val selectedFolderOrNull = folders
                     .firstOrNull { it.id == selectedFolder.id }
-                val el = AddStateOwnership.Element(
-                    readOnly = false,
-                    items = listOfNotNull(selectedFolderOrNull)
-                        .map { folder ->
-                            val key = "folder.${folder.id}"
-                            AddStateOwnership.Element.Item(
-                                key = key,
-                                title = folder.name,
-                            )
-                        },
-                )
+
+                // This might happen if the folder associated with the cipher was deleted.
+                // In that case the cipher continues to have the folder-id set, but we
+                // surface. The possible issue here is that if the "folders" are not complete
+                // yet, then the cipher will be shown as "No folder" for small period of time.
+                val el = if (selectedFolderOrNull == null) {
+                    val item = AddStateOwnership.Element.Item(
+                        key = "folder.empty",
+                        title = translate(Res.string.folder_none),
+                        stub = true,
+                    )
+                    AddStateOwnership.Element(
+                        readOnly = false,
+                        items = listOf(item),
+                    )
+                } else {
+                    AddStateOwnership.Element(
+                        readOnly = false,
+                        items = listOfNotNull(selectedFolderOrNull)
+                            .map { folder ->
+                                val key = "folder.${folder.id}"
+                                AddStateOwnership.Element.Item(
+                                    key = key,
+                                    title = folder.name,
+                                )
+                            },
+                    )
+                }
                 AddStateOwnershipElementHolder(
                     value = selectedFolder,
                     element = el,
