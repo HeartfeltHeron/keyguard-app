@@ -5053,7 +5053,6 @@
     "additional-domains": [
       "docusign.net"
     ],
-    "url": "https://www.docusign.com",
     "tfa": [
       "sms",
       "call",
@@ -10741,12 +10740,9 @@
     "domain": "my.gov.au",
     "tfa": [
       "sms",
-      "custom-software"
+      "totp"
     ],
-    "custom-software": [
-      "myGov Code Generator"
-    ],
-    "documentation": "https://my.gov.au/en/about/help/mygov-account/help-using-your-account/manage-sign-in-details",
+    "documentation": "https://my.gov.au/en/about/help/mygov-website/sign-in-to-mygov/use-an-authenticator",
     "name": "myGov"
   },
   {
@@ -14756,10 +14752,24 @@
   {
     "domain": "service.nsw.gov.au",
     "tfa": [
-      "sms"
+      "sms",
+      "totp",
+      "custom-software"
     ],
-    "documentation": "https://www.service.nsw.gov.au/services/myservicensw-account/turn-on-2-step-authentication",
+    "custom-software": [
+      "Service NSW app"
+    ],
+    "documentation": "https://www.service.nsw.gov.au/services/myservicensw-account/multi-factor-authentication",
     "name": "Service NSW"
+  },
+  {
+    "domain": "service.vic.gov.au",
+    "tfa": [
+      "sms",
+      "totp"
+    ],
+    "documentation": "https://service.vic.gov.au/find-services/digital-wallet/create-account/account-security",
+    "name": "Service Victoria"
   },
   {
     "domain": "serviceportal.hamburg.de",
@@ -17327,7 +17337,6 @@
   {
     "domain": "ucsd.edu",
     "tfa": [
-      "sms",
       "u2f",
       "custom-hardware",
       "custom-software"
