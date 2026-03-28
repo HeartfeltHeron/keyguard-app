@@ -20,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -28,8 +29,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.artemchep.keyguard.common.service.clipboard.ClipboardService
@@ -52,10 +58,18 @@ import com.artemchep.keyguard.ui.tabs.SegmentedButtonGroup
 import com.artemchep.keyguard.ui.tabs.TabItem
 import com.artemchep.keyguard.ui.theme.Dimens
 import com.artemchep.keyguard.ui.theme.combineAlpha
+import com.artemchep.keyguard.ui.theme.isDark
 import com.artemchep.keyguard.ui.toolbar.LargeToolbar
 import com.artemchep.keyguard.ui.toolbar.util.ToolbarBehavior
 import com.artemchep.keyguard.ui.util.HorizontalDivider
+import dev.snipme.highlights.Highlights
+import dev.snipme.highlights.model.BoldHighlight
+import dev.snipme.highlights.model.ColorHighlight
+import dev.snipme.highlights.model.SyntaxLanguage
+import dev.snipme.highlights.model.SyntaxThemes
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.stringResource
 import org.kodein.di.compose.rememberInstance
 
@@ -465,10 +479,52 @@ private fun CopyableCodeBlock(
                 )
             }
             SelectionContainer {
+                val isDark = MaterialTheme.colorScheme.isDark
+                var code by remember(text) {
+                    mutableStateOf(AnnotatedString(text))
+                }
+
+                // Async-ly highlight the syntax of the
+                // code snippet.
+                LaunchedEffect(text, isDark) {
+                    runCatching {
+                        code = withContext(Dispatchers.Default) {
+                            val codeHighlights = Highlights.Builder()
+                                .code(text)
+                                .theme(SyntaxThemes.darcula(darkMode = isDark))
+                                .language(SyntaxLanguage.SHELL)
+                                .build()
+
+                            buildAnnotatedString {
+                                append(text)
+
+                                // Highlight & bold special segments
+                                codeHighlights.getHighlights()
+                                    .filterIsInstance<ColorHighlight>()
+                                    .forEach {
+                                        addStyle(
+                                            SpanStyle(color = Color(it.rgb).copy(alpha = 1f)),
+                                            start = it.location.start,
+                                            end = it.location.end,
+                                        )
+                                    }
+                                codeHighlights.getHighlights()
+                                    .filterIsInstance<BoldHighlight>()
+                                    .forEach {
+                                        addStyle(
+                                            SpanStyle(fontWeight = FontWeight.Bold),
+                                            start = it.location.start,
+                                            end = it.location.end,
+                                        )
+                                    }
+                            }
+                        }
+                    }
+                }
                 Text(
                     modifier = Modifier
                         .then(codeModifier),
-                    text = text,
+                    text = code,
                     fontFamily = FontFamily.Monospace,
                 )
             }

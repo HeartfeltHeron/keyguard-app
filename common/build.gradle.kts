@@ -117,6 +117,7 @@ kotlin {
                 api(libs.mm2d.touchicon)
                 api(libs.html.text)
                 api(libs.ksoup.html)
+                api(libs.snipme.highlights)
                 api(libs.kdroidfilter.platformtools.darkmodedetector)
             }
         }

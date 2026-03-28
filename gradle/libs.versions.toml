@@ -119,6 +119,8 @@ jna = "5.18.1"
 platformtools = "0.7.5"
 # https://github.com/osipxd/encrypted-datastore
 osipxdCryptoDatastore = "1.1.1-beta03"
+# https://github.com/SnipMeDev/Highlights/
+highlights = "1.1.0"
 # https://github.com/cashapp/licensee
 licenseCheckPlugin = "1.14.1"
 # https://github.com/tony19/logback-android
@@ -292,6 +294,7 @@ java-jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
 kdroidfilter-composenativetray = { module = "io.github.kdroidfilter:composenativetray", version.ref = "composeNativeTray" }
 kdroidfilter-platformtools-darkmodedetector = { module = "io.github.kdroidfilter:platformtools.darkmodedetector", version.ref = "platformtools" }
 osipxd-security-crypto-datastore-preferences = { module = "io.github.osipxd:security-crypto-datastore-preferences", version.ref = "osipxdCryptoDatastore" }
+snipme-highlights = { module = "dev.snipme:highlights", version.ref = "highlights" }
 bouncycastle-bcpkix = { module = "org.bouncycastle:bcpkix-jdk18on", version.ref = "bouncycastle" }
 bouncycastle-bcprov = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
 bouncycastle-bctls = { module = "org.bouncycastle:bctls-jdk18on", version.ref = "bouncycastle" }
