@@ -101,7 +101,7 @@ android {
         }
 
         debug {
-            //applicationIdSuffix = ".debug"
+            applicationIdSuffix = ".debug"
         }
         release {
             signingConfig = signingConfigs.getByName("release")
