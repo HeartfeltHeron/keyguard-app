@@ -45,6 +45,7 @@ import com.artemchep.keyguard.common.service.quicksearch.DesktopLibGlobalHotKeyR
 import com.artemchep.keyguard.common.service.quicksearch.QuickSearchHotkeyService
 import com.artemchep.keyguard.common.service.quicksearch.QuickSearchWindowManager
 import com.artemchep.keyguard.common.service.session.VaultSessionLocker
+import com.artemchep.keyguard.common.service.sshagent.retrySshAgentStartup
 import com.artemchep.keyguard.common.service.sshagent.SshAgentStatusService
 import com.artemchep.keyguard.common.service.vault.KeyReadWriteRepository
 import com.artemchep.keyguard.common.service.sshagent.SshAgentManager
@@ -368,9 +369,16 @@ fun main() {
                     var failed = false
                     try {
                         sshAgentStatusService.set(SshAgentStatus.Starting)
-                        val process = sshAgentManager.start(
-                            scope = this,
-                            binaryPath = binaryPath,
+
+                        val process = retrySshAgentStartup(
+                            logRepository = logRepository,
+                            start = { _, _ ->
+                                sshAgentManager.start(
+                                    scope = this,
+                                    binaryPath = binaryPath,
+                                )
+                            },
+                            stop = sshAgentManager::stop,
                         )
                         sshAgentStatusService.set(SshAgentStatus.Ready)
                         val exitCode = runInterruptible(Dispatchers.IO) {
