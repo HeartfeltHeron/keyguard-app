@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.IBinder
 import android.util.Log
+import android.widget.Toast
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
 import com.artemchep.keyguard.android.Notifications
@@ -27,12 +28,14 @@ import com.artemchep.keyguard.common.usecase.GetSshAgentFilter
 import com.artemchep.keyguard.common.usecase.GetVaultSession
 import java.util.LinkedHashSet
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.DurationUnit
@@ -216,25 +219,28 @@ class SshAgentService : Service(), DIAware {
             requestFlow = requestFlow,
             notificationTag = notificationTag,
         )
+        val bridgeFailureHandler = CoroutineExceptionHandler { _, error ->
+            if (error is CancellationException) {
+                return@CoroutineExceptionHandler
+            }
+
+            Log.w(TAG, "Failed to connect to SSH agent proxy port=$proxyPort", error)
+            showBridgeErrorToast(error)
+        }
         val bridgeJob = scope.launchSshAgentProxyBridge(
             requestProcessor = requestProcessor,
             proxyPort = proxyPort,
             sessionId = sessionId,
             sessionSecret = sessionSecret,
             senderAppInfo = senderAppInfo,
-            context = Dispatchers.IO,
+            context = Dispatchers.IO + bridgeFailureHandler,
             start = CoroutineStart.LAZY,
         )
         bridgeTracker.onBridgeStarted(
             startId = startId,
             bridge = bridgeJob,
         )
-        bridgeJob.invokeOnCompletion { error ->
-            when (error) {
-                null -> Unit
-                is CancellationException -> Unit
-                else -> Log.w(TAG, "Failed to connect to SSH agent proxy port=$proxyPort", error)
-            }
+        bridgeJob.invokeOnCompletion {
             bridgeTracker.onBridgeFinished(bridgeJob)?.let { stopStartId ->
                 stopSelfResult(stopStartId)
             }
@@ -242,6 +248,24 @@ class SshAgentService : Service(), DIAware {
         bridgeJob.start()
 
         return START_NOT_STICKY
+    }
+
+    private fun showBridgeErrorToast(
+        error: Throwable,
+    ) {
+        val baseMessage = getString(R.string.notification_termux_ssh_error)
+        val detail = error.localizedMessage
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+            ?.takeUnless { it.contains('\n') }
+        val message = if (detail != null) {
+            "$baseMessage: $detail"
+        } else {
+            baseMessage
+        }
+        scope.launch(Dispatchers.Main.immediate) {
+            Toast.makeText(applicationContext, message, Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun startForegroundWithType(

@@ -5,8 +5,10 @@ import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketAddress
 import java.util.Base64
+import java.util.concurrent.CopyOnWriteArrayList
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -315,7 +317,11 @@ class AndroidSshAgentSecureBridgeTest {
     @Test
     fun `launch cancellation closes an active proxy socket`() = runBlocking {
         withTimeout(5_000) {
-            val bridgeScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+            val uncaughtErrors = CopyOnWriteArrayList<Throwable>()
+            val exceptionHandler = CoroutineExceptionHandler { _, error ->
+                uncaughtErrors += error
+            }
+            val bridgeScope = CoroutineScope(SupervisorJob() + Dispatchers.IO + exceptionHandler)
             val sessionEstablished = CompletableDeferred<Unit>()
             try {
                 ServerSocket().use { server ->
@@ -328,6 +334,10 @@ class AndroidSshAgentSecureBridgeTest {
                         sessionSecret = ByteArray(SshAgentTcpProtocol.SESSION_SECRET_LENGTH) { 0x22 },
                         connectHostCandidates = listOf("127.0.0.1"),
                     )
+                    val bridgeCompletion = CompletableDeferred<Throwable?>()
+                    bridgeJob.invokeOnCompletion { error ->
+                        bridgeCompletion.complete(error)
+                    }
                     val toolJob = async(Dispatchers.IO) {
                         server.accept().use { socket ->
                             val toolChannel = SshAgentTcpProtocol.openAsTool(
@@ -346,6 +356,8 @@ class AndroidSshAgentSecureBridgeTest {
                     bridgeJob.join()
                     assertTrue(bridgeJob.isCancelled)
                     assertNull(toolJob.await())
+                    assertTrue(bridgeCompletion.await() is CancellationException)
+                    assertTrue(uncaughtErrors.isEmpty(), uncaughtErrors.joinToString())
                 }
             } finally {
                 bridgeScope.cancel()

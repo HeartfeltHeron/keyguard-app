@@ -1,10 +1,14 @@
 package com.artemchep.keyguard.common.service.sshagent
 
+import java.io.EOFException
 import java.net.Socket
+import java.net.SocketException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
@@ -44,15 +48,27 @@ internal suspend fun runSshAgentProxyBridge(
             sessionId = sessionId,
             sessionSecret = sessionSecret,
         )
-        runSshAgentPacketSession(
-            channel = channel,
-            rpcHandler = rpcHandler,
-            initialContext = SshAgentRpcRequestContext(
-                authenticated = true,
-                allowAuthenticate = false,
-                callerAugmentation = senderAppInfo,
-            ),
-        )
+        // Closing the local proxy socket during bridge cancellation or peer disconnect
+        // should terminate the session quietly instead of surfacing as an uncaught failure.
+        try {
+            runSshAgentPacketSession(
+                channel = channel,
+                rpcHandler = rpcHandler,
+                initialContext = SshAgentRpcRequestContext(
+                    authenticated = true,
+                    allowAuthenticate = false,
+                    callerAugmentation = senderAppInfo,
+                ),
+            )
+        } catch (_: EOFException) {
+            return@withAndroidSshAgentProxySocket
+        } catch (e: SocketException) {
+            val skip = e.isExpectedProxyShutdown(socket, currentCoroutineContext().isActive)
+            if (skip) {
+                return@withAndroidSshAgentProxySocket
+            }
+            throw e
+        }
     }
 }
 
@@ -89,6 +105,23 @@ internal fun CoroutineScope.launchSshAgentProxyBridge(
         monotonicTimeMs = monotonicTimeMs,
         delayMs = delayMs,
     )
+}
+
+private fun SocketException.isExpectedProxyShutdown(
+    socket: Socket,
+    coroutineActive: Boolean,
+): Boolean {
+    if (!coroutineActive || socket.isClosed || socket.isInputShutdown || socket.isOutputShutdown) {
+        return true
+    }
+
+    val normalizedMessage = message
+        ?.lowercase()
+        ?: return false
+    return normalizedMessage.contains("socket closed") ||
+        normalizedMessage.contains("broken pipe") ||
+        normalizedMessage.contains("connection reset") ||
+        normalizedMessage.contains("connection abort")
 }
 
 internal fun buildAndroidSshAgentCallerIdentity(
