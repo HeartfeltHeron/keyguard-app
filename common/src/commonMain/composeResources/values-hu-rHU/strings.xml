@@ -213,7 +213,7 @@
     <!-- Remember me to not have to enter OTP code second time -->
     <string name="remember_me">Emlékezzen rám</string>
     <!-- An Archive screen -->
-    <string name="archive">Archive</string>
+    <string name="archive">Archívum</string>
     <!-- A Trash screen -->
     <string name="trash">Lomtár</string>
     <!-- To download something -->
@@ -315,15 +315,16 @@
     <string name="ciphers_action_change_folder_title">Áthelyezés mappába</string>
     <string name="ciphers_action_change_name_title">Név módosítása</string>
     <string name="ciphers_action_change_names_title">Nevek módosítása</string>
+    <string name="ciphers_action_change_tags_title">Change tags</string>
     <string name="ciphers_action_add_password_title">Jelszó hozzáadása</string>
     <string name="ciphers_action_add_passwords_title">Jelszavak hozzáadása</string>
     <string name="ciphers_action_change_password_title">Jelszó módosítása</string>
     <string name="ciphers_action_change_passwords_title">Jelszavak módosítása</string>
     <string name="ciphers_action_view_password_history_title">Jelszóelőzmények megtekintése</string>
-    <string name="ciphers_action_archive_title">Archive</string>
-    <string name="ciphers_action_archive_confirmation_title">Move to archive?</string>
-    <string name="ciphers_action_unarchive_title">Restore from archive</string>
-    <string name="ciphers_action_unarchive_confirmation_title">Restore from archive?</string>
+    <string name="ciphers_action_archive_title">Archiválás</string>
+    <string name="ciphers_action_archive_confirmation_title">Áthelyezi az archívumba?</string>
+    <string name="ciphers_action_unarchive_title">Visszaállítás az archívumból</string>
+    <string name="ciphers_action_unarchive_confirmation_title">Visszaállítja az archívumból?</string>
     <string name="ciphers_action_trash_title">Lomtár</string>
     <string name="ciphers_action_trash_confirmation_title">Áthelyezed a lomtárba?</string>
     <string name="ciphers_action_trash_confirmation_text">A 30 napnál hosszabb ideje a Lomtárban lévő elemek automatikusan törlődnek.</string>
@@ -441,6 +442,19 @@
     <string name="ssh_key_action_save_unencrypted_private_key_saved_downloads_success_title">Titkosítatlan privát kulcs mentése a letöltésekbe</string>
     <string name="ssh_key_action_add_key_title">Kulcsok hozzáadása</string>
     <string name="ssh_key_action_replace_key_title">Kulcsok cseréje</string>
+    <string name="ssh_key_import_title">Import SSH key</string>
+    <string name="ssh_key_import_failed_title">Failed to import SSH key</string>
+    <string name="ssh_key_import_success_title">Imported SSH key</string>
+    <string name="ssh_key_import_error_unsupported_format">Unsupported SSH private key format.</string>
+    <string name="ssh_key_import_error_unsupported_algorithm">Only RSA and Ed25519 SSH keys are supported.</string>
+    <string name="ssh_key_import_error_invalid_passphrase">The SSH key passphrase is invalid.</string>
+    <string name="ssh_key_import_error_malformed_key">The SSH key file is malformed.</string>
+    <string name="ssh_key_import_error_read">Unable to read the selected file.</string>
+    <string name="ssh_key_import_error_passphrase_required">A passphrase is required to unlock this SSH key.</string>
+    <string name="ssh_key_import_passphrase_title">Passphrase</string>
+    <string name="ssh_key_import_passphrase_hint">Enter SSH key passphrase</string>
+    <string name="ssh_key_import_passphrase_dialog_title">Enter SSH key passphrase</string>
+    <string name="ssh_key_import_passphrase_dialog_message">This <xliff:g id="format_label" example="OpenSSH">%1$s</xliff:g> key is encrypted.</string>
     <string name="selection_n_selected"><xliff:g id="size" example="15">%1$d</xliff:g> kiválasztva</string>
     <string name="copy">Másolás</string>
     <string name="copy_value">Érték másolása</string>
@@ -539,10 +553,12 @@
     <string name="error_invalid_email">Érvénytelen e-mail cím</string>
     <string name="error_invalid_url">Érvénytelen URL</string>
     <string name="error_invalid_uri">Érvénytelen URI</string>
+    <string name="error_invalid_key">Invalid key</string>
     <string name="error_invalid_card_number">Érvénytelen kártyaszám</string>
     <string name="error_incorrect_password">Helytelen jelszó</string>
     <string name="error_not_found">Nem található</string>
     <string name="error_otp_key_must_not_be_empty">Az egyszeri jelszó titkos kulcsa nem lehet üres</string>
+    <string name="error_otp_key_is_invalid">One-time password's secret key is invalid</string>
     <string name="error_failed_file_already_exists">Nem sikerült létrehozni a fájlt. A meglévő fájl cseréje nem engedélyezett</string>
     <string name="error_failed_generate_kdf_hash_oom">Nem sikerült létrehozni a kulcsot, nincs elég memória. Kérjük, ellenőrizze a KDF szerver beállításait.</string>
     <string name="error_failed_generate_otp_code">Nem sikerült legenerálni az OTP-kódot</string>
@@ -729,9 +745,9 @@
     <string name="addsend_hide_text_by_default_title">Az elem elérésekor alapértelmezés szerint rejtse el a szöveget</string>
     <string name="addsend_hide_email_title">Email cím elrejtése</string>
     <string name="addsend_max_access_count_note">Amennyiben be van állítva, az elem elérhetetlen lesz, amint eléri a meghatározott hozzáférések számát.</string>
-    <string name="addsend_auth_emails_label">Email(s)</string>
-    <string name="addsend_auth_emails_placeholder">Comma-separated emails</string>
-    <string name="addsend_auth_emails_note">Recipients will be asked to complete a one-time email verification after opening the link.</string>
+    <string name="addsend_auth_emails_label">Email cím(ek)</string>
+    <string name="addsend_auth_emails_placeholder">Vesszővel elválasztott email címek</string>
+    <string name="addsend_auth_emails_note">A címzetteket a link megnyitása után egy egyszeri e-mailes hitelesítésre kérjük.</string>
     <string name="addaccount_promo_title">A széfje üres. Csatlakoztasson egy fiókot a kezdéshez:</string>
     <string name="addaccount_promo_features">Szeretné a legtöbbet kihozni a használatból? Alább összefoglaltuk az alkalmazás összes elsődleges funkcióját. Vessen rá egy pillantást, hogy lássa, hogyan működhet ez az Ön számára.</string>
     <string name="addaccount_description_short_bitwarden_text">Titkosított széf tárolása a felhőben.</string>
@@ -783,10 +799,10 @@
     <string name="yubikey_nfc_title">Tartsa a YubiKey-t laposan a készülék hátuljához</string>
     <string name="yubikey_nfc_text">NFC támogatást igényel.</string>
     <string name="yubikey_error_failed_to_read">Nem sikerült beolvasni a YubiKey-t</string>
-    <string name="yubikey_unlock_error_unsupported_title">YubiKey unlock is not supported</string>
-    <string name="yubikey_unlock_error_unsupported_text">This YubiKey or connection type does not support challenge-response unlock.</string>
-    <string name="yubikey_unlock_error_failed_title">Failed to use YubiKey</string>
-    <string name="yubikey_unlock_error_failed_text">Try the YubiKey again or unlock the vault with your password.</string>
+    <string name="yubikey_unlock_error_unsupported_title">A YubiKey feloldás nem támogatott</string>
+    <string name="yubikey_unlock_error_unsupported_text">Ez a YubiKey vagy kapcsolattípus nem támogatja a kihívás-válasz (challenge-response) alapú feloldást.</string>
+    <string name="yubikey_unlock_error_failed_title">A YubiKey használata sikertelen</string>
+    <string name="yubikey_unlock_error_failed_text">Próbálja újra a YubiKey-t, vagy oldja fel a széfet a jelszavával.</string>
     <string name="fido2webauthn_bitwarden_web_vault_version_warning_note">A FIDO2 WebAuthn használatához a Bitwarden Webes széf <xliff:g id="version" example="2023.7.1 ">%1$s</xliff:g> vagy magasabb verziója szükséges. A régebbi verziók esetén a hitelesítési eredmény helytelenül kerül továbbításra a hivatalos Bitwarden alkalmazáshoz.</string>
     <string name="elevatedaccess_header_title">Hozzáférés megerősítése</string>
     <string name="elevatedaccess_header_text">Ez az adat védett, a folytatáshoz kérjük, adja meg az alkalmazás jelszavát.</string>
@@ -804,10 +820,10 @@
     <string name="lock_reason_manually">Manuálisan zárolva</string>
     <string name="send_type_text">Szöveg</string>
     <string name="send_type_file">Fájl</string>
-    <string name="send_auth_title">Who can view</string>
-    <string name="send_auth_type_none">Anyone with the link</string>
-    <string name="send_auth_type_password">Anyone with the link + password</string>
-    <string name="send_auth_type_email">Specific people</string>
+    <string name="send_auth_title">Ki tekintheti meg</string>
+    <string name="send_auth_type_none">Bárki, aki rendelkezik a linkkel</string>
+    <string name="send_auth_type_password">Bárki, aki rendelkezik a linkkel és a jelszóval</string>
+    <string name="send_auth_type_email">Meghatározott személyek</string>
     <string name="cipher_type_login">Bejelentkezés</string>
     <string name="cipher_type_card">Kártya</string>
     <string name="cipher_type_identity">Személyazonosság</string>
@@ -858,6 +874,19 @@
     <string name="ssh_agent_setup_step_3_text">Futtassa ezeket a parancsokat ugyanabban a shell munkamenetben, ahol az ügynököt konfigurálta.</string>
     <string name="ssh_agent_setup_windows_title">Windows</string>
     <string name="ssh_agent_setup_windows_text">A jelenlegi Keyguard asztali SSH ügynök futtatókörnyezet még nem érhető el Windowson, ezért ez a beállítás csak tájékoztató jellegű.</string>
+    <string name="ssh_agent_setup_android_termux_text">On Android, Keyguard provides the SSH agent via a dedicated helper package. Enable SSH agent in Keyguard, install and configure the package, and approve requests when your SSH client connects.</string>
+    <string name="ssh_agent_setup_android_termux_step_1_title">Install Termux</string>
+    <string name="ssh_agent_setup_android_termux_step_1_text">Termux is an Android terminal application and Linux environment.</string>
+    <string name="ssh_agent_setup_android_termux_step_2_title">Install package</string>
+    <string name="ssh_agent_setup_android_termux_step_2_text">Open Termux and install the package from a custom APT repository:</string>
+    <string name="ssh_agent_setup_android_termux_step_3_title">Configure your SSH client</string>
+    <string name="ssh_agent_setup_android_termux_step_3_shell_current">Start the package and export the socket into your current shell:</string>
+    <string name="ssh_agent_setup_android_termux_step_3_shell_startup">If you want to auto-start the package every time Termux starts, add it to your shell startup file:</string>
+    <string name="ssh_agent_setup_android_termux_step_4_title">Verify</string>
+    <string name="ssh_agent_setup_android_termux_step_4_text">Run these commands in the same shell session where you configured the agent.</string>
+    <string name="ssh_agent_setup_android_how_does_it_work_title">How does it work</string>
+    <string name="ssh_agent_setup_android_how_does_it_work_1">The SSH agent receives requests from SSH tools, then forwards them to the Keyguard app instead of handling the sensitive operation itself.</string>
+    <string name="ssh_agent_setup_android_how_does_it_work_2">The communication is done in two steps: first the agent signals the app to start a session, then both sides connect over a local TCP channel and exchange encrypted messages. The SSH agent acts as a relay, while the Keyguard app performs the actual operations.</string>
     <string name="ssh_agent_request_approval_sign_title">SSH Aláírási Kérelem</string>
     <string name="ssh_agent_request_approval_sign_message_known_app"><xliff:g id="who" example="Keyguard">%1$s</xliff:g> a következő SSH kulcsot szeretné használni adatok aláírására:</string>
     <string name="ssh_agent_request_approval_sign_message_unknown_app">Egy alkalmazás a következő SSH kulcsot szeretné használni adatok aláírására:</string>
@@ -907,7 +936,7 @@
     <string name="vault_view_passkey_created_at_label">Hozzáférési kulcs létrehozva: <xliff:g id="date" example="1 January 1970 12:30">%1$s</xliff:g></string>
     <string name="vault_view_revision_label">Utoljára módosítva: <xliff:g id="date" example="1 January 1970 12:30">%1$s</xliff:g></string>
     <string name="vault_view_created_at_label">Létrehozva: <xliff:g id="date" example="1 January 1970 12:30">%1$s</xliff:g></string>
-    <string name="vault_view_archived_at_label">Archived at <xliff:g id="date" example="1 January 1970 12:30">%1$s</xliff:g></string>
+    <string name="vault_view_archived_at_label">Archiválva: <xliff:g id="date" example="1 January 1970 12:30">%1$s</xliff:g></string>
     <string name="vault_view_deleted_at_label">Törölve lett: <xliff:g id="date" example="1 January 1970 12:30">%1$s</xliff:g></string>
     <string name="vault_view_expired_at_label">Lejárt ekkor: <xliff:g id="date" example="1 January 1970 12:30">%1$s</xliff:g></string>
     <string name="vault_view_expiration_scheduled_at_label">Lejárat ütemezve ekkorra: <xliff:g id="date" example="1 January 1970 12:30">%1$s</xliff:g></string>
@@ -923,7 +952,7 @@
     <string name="send_main_header_title">Küldések</string>
     <string name="send_main_search_placeholder">Küldés keresése</string>
     <string name="send_main_new_item_button">Új elem</string>
-    <string name="send_email_is_required_to_access_label">Email-verified recipients can access this share</string>
+    <string name="send_email_is_required_to_access_label">Ezt a megosztást e-mailben hitelesített címzettek érhetik el</string>
     <string name="send_password_is_required_to_access_label">A megosztás eléréséhez jelszó szükséges</string>
     <string name="generator_header_title">Generátor</string>
     <string name="generator_header_username_title">Felhasználónév generátor</string>
@@ -940,7 +969,7 @@
     <string name="generator_passphrase_number_title">Szám</string>
     <string name="generator_passphrase_wordlist_title">Szólista</string>
     <string name="generator_pin_code_type">PIN</string>
-    <string name="generator_pin_code_note">Almost one in 10 people use the same four-digit PIN. Generate PINs to avoid common variants.</string>
+    <string name="generator_pin_code_note">Majdnem minden tizedik ember ugyanazt a négyjegyű PIN kódot használja. Generáljon PIN kódokat a gyakori változatok elkerülése érdekében.</string>
     <string name="generator_username_type">Felhasználónév</string>
     <string name="generator_username_delimiter_title">Elválasztójel</string>
     <string name="generator_username_custom_word_title">Egyéni szó</string>
@@ -1187,13 +1216,13 @@
     <string name="pref_item_biometric_unlock_title">Biometrikus feloldás</string>
     <string name="pref_item_biometric_unlock_require_confirmation_title">Megerősítést követelése</string>
     <string name="pref_item_biometric_unlock_require_confirmation_text">Követeljen meg egy további megerősítő gombnyomást a sikeres biometrikus hitelesítés után</string>
-    <string name="pref_item_yubikey_unlock_title">YubiKey unlock</string>
-    <string name="pref_item_yubikey_unlock_text_on_slot_n">Configured with slot <xliff:g id="slot_number" example="1">%1$s</xliff:g></string>
-    <string name="pref_item_yubikey_unlock_provision_slot_title">Provision slot</string>
-    <string name="pref_item_yubikey_unlock_disable_title">Disable</string>
-    <string name="pref_item_yubikey_unlock_confirm_title">Provision YubiKey slot?</string>
-    <string name="pref_item_yubikey_unlock_confirm_message_empty">Provision slot <xliff:g id="slot_number" example="1">%1$s</xliff:g> for vault unlock? Setup requires a USB connection.</string>
-    <string name="pref_item_yubikey_unlock_confirm_message_configured">Slot <xliff:g id="slot_number" example="1">%1$s</xliff:g> is already configured. Re-provisioning requires USB connection and overwrites the current slot configuration.</string>
+    <string name="pref_item_yubikey_unlock_title">YubiKey feloldás</string>
+    <string name="pref_item_yubikey_unlock_text_on_slot_n">A(z) <xliff:g id="slot_number" example="1">%1$s</xliff:g>. slottal konfigurálva</string>
+    <string name="pref_item_yubikey_unlock_provision_slot_title">Slot beállítása</string>
+    <string name="pref_item_yubikey_unlock_disable_title">Letiltás</string>
+    <string name="pref_item_yubikey_unlock_confirm_title">Beállítja a YubiKey slotot?</string>
+    <string name="pref_item_yubikey_unlock_confirm_message_empty">Beállítja a(z) <xliff:g id="slot_number" example="1">%1$s</xliff:g>. slotot a széf feloldásához? A beállítás USB-kapcsolatot igényel.</string>
+    <string name="pref_item_yubikey_unlock_confirm_message_configured">A(z) <xliff:g id="slot_number" example="1">%1$s</xliff:g>. slot már konfigurálva van. Az újra-beállítás USB-kapcsolatot igényel, és felülírja a jelenlegi slot konfigurációját.</string>
     <!--
         A title of the system popup that asks a user to use his biometric to later
         be able to use it to unlock the vault. -->

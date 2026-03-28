@@ -121,8 +121,8 @@
         "name": "Vietnamese"
       }
     ],
-    "translated": 31000,
-    "target": 31895,
+    "translated": 31018,
+    "target": 31917,
     "approved": 1050,
     "voted": 0,
     "positiveVotes": 63,
@@ -187,8 +187,8 @@
         "name": "Portuguese, Brazilian"
       }
     ],
-    "translated": 1181,
-    "target": 1327,
+    "translated": 1264,
+    "target": 1426,
     "approved": 0,
     "voted": 0,
     "positiveVotes": 0,
@@ -495,8 +495,8 @@
         "name": "Hungarian"
       }
     ],
-    "translated": 5788,
-    "target": 5462,
+    "translated": 5944,
+    "target": 5632,
     "approved": 0,
     "voted": 8,
     "positiveVotes": 0,
@@ -947,13 +947,13 @@
         "name": "Turkish"
       }
     ],
-    "translated": 5834,
-    "target": 5405,
-    "approved": 6144,
+    "translated": 6941,
+    "target": 6525,
+    "approved": 7172,
     "voted": 0,
     "positiveVotes": 0,
     "negativeVotes": 0,
-    "winning": 5861
+    "winning": 6906
   },
   {
     "user": {
@@ -1313,7 +1313,7 @@
     "voted": 1,
     "positiveVotes": 0,
     "negativeVotes": 0,
-    "winning": 244
+    "winning": 233
   },
   {
     "user": {
@@ -1805,6 +1805,28 @@
   },
   {
     "user": {
+      "id": "17130574",
+      "username": "Sangelo",
+      "fullName": "Sangelo",
+      "avatarUrl": "https://crowdin-static.cf-downloads.crowdin.com/avatar/17130574/medium/72a43295f681d1f60a7bc76e9e2e429d.png",
+      "joined": "2025-05-28 04:33:34"
+    },
+    "languages": [
+      {
+        "id": "de",
+        "name": "German"
+      }
+    ],
+    "translated": 131,
+    "target": 117,
+    "approved": 0,
+    "voted": 0,
+    "positiveVotes": 0,
+    "negativeVotes": 0,
+    "winning": 0
+  },
+  {
+    "user": {
       "id": "17216524",
       "username": "unixkiwi",
       "fullName": "unixkiwi",
@@ -1871,6 +1893,28 @@
   },
   {
     "user": {
+      "id": "17506742",
+      "username": "MAAB-FW",
+      "fullName": "Mohammad Aiyub Ali Bappy (MAAB-FW)",
+      "avatarUrl": "https://crowdin-static.cf-downloads.crowdin.com/avatar/17506742/medium/50388a2e2b4166d9b09210b19944bec8.jpeg",
+      "joined": "2025-12-31 19:50:35"
+    },
+    "languages": [
+      {
+        "id": "bn",
+        "name": "Bengali"
+      }
+    ],
+    "translated": 685,
+    "target": 1523,
+    "approved": 0,
+    "voted": 0,
+    "positiveVotes": 0,
+    "negativeVotes": 0,
+    "winning": 0
+  },
+  {
+    "user": {
       "id": "18711",
       "username": "NCAA",
       "fullName": "NCAA",
@@ -1927,8 +1971,8 @@
         "name": "Portuguese"
       }
     ],
-    "translated": 6615,
-    "target": 7310,
+    "translated": 6870,
+    "target": 7598,
     "approved": 0,
     "voted": 0,
     "positiveVotes": 0,
