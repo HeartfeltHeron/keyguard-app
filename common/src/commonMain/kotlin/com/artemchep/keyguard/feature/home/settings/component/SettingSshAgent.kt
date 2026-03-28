@@ -59,7 +59,9 @@ fun settingSshAgentProvider(
 
     SettingIi(
         platformClasses = listOf(
-            Platform.Desktop::class,
+            Platform.Mobile.Android::class,
+            Platform.Desktop.Linux::class,
+            Platform.Desktop.MacOS::class,
         ),
         search = SettingIi.Search(
             group = "security",

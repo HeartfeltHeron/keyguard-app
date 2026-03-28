@@ -46,3 +46,27 @@ fun Base64Service.url(base64: String): String = base64
     .replace('+', '-')
     .replace('/', '_')
     .replace("=", "")
+
+fun Base64Service.decodeOrNull(
+    text: String,
+) = runCatching {
+    decode(text)
+}.getOrNull()
+
+fun Base64Service.decodeToStringOrNull(
+    text: String,
+) = runCatching {
+    decodeToString(text)
+}.getOrNull()
+
+fun Base64Service.decodeOrNull(
+    bytes: ByteArray,
+) = runCatching {
+    decode(bytes)
+}.getOrNull()
+
+fun Base64Service.decodeToStringOrNull(
+    bytes: ByteArray,
+) = runCatching {
+    decodeToString(bytes)
+}.getOrNull()

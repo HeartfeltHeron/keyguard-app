@@ -175,6 +175,7 @@ class SshAgentManager(
                     keyName = keyName,
                     keyFingerprint = keyFingerprint,
                     caller = caller,
+                    notificationTag = null,
                     timeout = SshAgentIpcServer.APPROVAL_TIMEOUT_MS.milliseconds,
                     deferred = deferred,
                 )
@@ -299,6 +300,7 @@ class SshAgentManager(
             val deferred = CompletableDeferred<Boolean>()
             val request = SshAgentGetListRequest(
                 caller = caller,
+                notificationTag = null,
                 timeout = SshAgentIpcServer.APPROVAL_TIMEOUT_MS.milliseconds,
                 deferred = deferred,
             )
@@ -310,7 +312,10 @@ class SshAgentManager(
             withTimeoutOrNull(request.timeout.inWholeMilliseconds) {
                 request.deferred.await()
             } ?: run {
-                request.deferred.complete(false)
+                request.completeWithLog(
+                    value = false,
+                    reason = "desktop_get_list_timeout",
+                )
                 false
             }
         } finally {

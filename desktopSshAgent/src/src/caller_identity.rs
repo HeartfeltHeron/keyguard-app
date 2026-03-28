@@ -6,39 +6,37 @@
 //! process/app information.
 
 use crate::ipc::messages::CallerIdentity;
-
+use common_ssh_agent_rust::unix_caller_identity::{
+    caller_from_unix_stream as shared_caller_from_unix_stream, UnixCallerIdentity,
+};
 use tokio::net::UnixStream;
 
 pub(crate) fn caller_from_unix_stream(stream: &UnixStream) -> Option<CallerIdentity> {
-    let cred = stream.peer_cred().ok()?;
-    let pid = cred
-        .pid()
-        .and_then(|p| u32::try_from(p).ok())
-        .unwrap_or(0);
+    let shared_identity = shared_caller_from_unix_stream(stream)?;
+    let mut identity = proto_identity_from_shared(shared_identity);
 
-    let mut identity = CallerIdentity {
-        pid,
-        uid: cred.uid() as u32,
-        gid: cred.gid() as u32,
-        process_name: String::new(),
-        executable_path: String::new(),
-        app_pid: 0,
-        app_name: String::new(),
-        app_bundle_path: String::new(),
-    };
-
-    if pid != 0 {
+    if identity.pid != 0 {
         #[cfg(target_os = "macos")]
         {
+            let pid = identity.pid;
             populate_macos_details(&mut identity, pid);
-        }
-        #[cfg(target_os = "linux")]
-        {
-            populate_linux_details(&mut identity, pid);
         }
     }
 
     Some(identity)
+}
+
+fn proto_identity_from_shared(shared_identity: UnixCallerIdentity) -> CallerIdentity {
+    CallerIdentity {
+        pid: shared_identity.pid.unwrap_or(0),
+        uid: shared_identity.uid,
+        gid: shared_identity.gid,
+        process_name: shared_identity.process_name.unwrap_or_default(),
+        executable_path: shared_identity.executable_path.unwrap_or_default(),
+        app_pid: 0,
+        app_name: String::new(),
+        app_bundle_path: String::new(),
+    }
 }
 
 // ================================================================
@@ -50,11 +48,7 @@ fn populate_macos_details(identity: &mut CallerIdentity, pid: u32) {
     if let Some(exe) = macos_proc_pidpath(pid) {
         identity.executable_path = exe.clone();
         if identity.process_name.is_empty() {
-            identity.process_name = exe
-                .rsplit('/')
-                .next()
-                .unwrap_or_default()
-                .to_string();
+            identity.process_name = exe.rsplit('/').next().unwrap_or_default().to_string();
         }
     }
 
@@ -97,8 +91,13 @@ fn macos_proc_name(pid: u32) -> Option<String> {
     use libc::{c_int, c_void};
 
     let mut buf = vec![0u8; 256];
-    let ret =
-        unsafe { libc::proc_name(pid as c_int, buf.as_mut_ptr() as *mut c_void, buf.len() as u32) };
+    let ret = unsafe {
+        libc::proc_name(
+            pid as c_int,
+            buf.as_mut_ptr() as *mut c_void,
+            buf.len() as u32,
+        )
+    };
     if ret <= 0 {
         return None;
     }
@@ -191,41 +190,37 @@ fn find_app_bundle_path(executable_path: &str) -> Option<String> {
     None
 }
 
-// ================================================================
-// Linux implementation
-// ================================================================
+#[cfg(all(test, target_os = "macos"))]
+mod tests {
+    use super::caller_from_unix_stream;
+    use tempfile::tempdir;
+    use tokio::net::{UnixListener, UnixStream};
 
-#[cfg(target_os = "linux")]
-fn populate_linux_details(identity: &mut CallerIdentity, pid: u32) {
-    let exe_path = linux_executable_path(pid);
-    if let Some(exe) = &exe_path {
-        identity.executable_path = exe.clone();
+    #[tokio::test(flavor = "current_thread")]
+    async fn caller_identity_recovers_macos_peer_pid_and_details() {
+        let tempdir = tempdir().expect("tempdir");
+        let socket_path = tempdir.path().join("caller-identity.sock");
+        let listener = UnixListener::bind(&socket_path).expect("bind listener");
+
+        let connect_task = tokio::spawn({
+            let socket_path = socket_path.clone();
+            async move {
+                UnixStream::connect(socket_path)
+                    .await
+                    .expect("connect client")
+            }
+        });
+
+        let (server_stream, _) = listener.accept().await.expect("accept client");
+        let client_stream = connect_task.await.expect("join connect task");
+        let identity = caller_from_unix_stream(&server_stream).expect("caller identity");
+
+        assert_eq!(identity.pid, std::process::id());
+        assert!(
+            !identity.process_name.is_empty() || !identity.executable_path.is_empty(),
+            "expected process_name or executable_path to be populated"
+        );
+
+        drop(client_stream);
     }
-
-    if let Some(name) = linux_process_name(pid).or_else(|| exe_path.as_deref().and_then(basename)) {
-        identity.process_name = name;
-    }
-}
-
-#[cfg(target_os = "linux")]
-fn linux_executable_path(pid: u32) -> Option<String> {
-    let link = std::path::PathBuf::from(format!("/proc/{pid}/exe"));
-    let target = std::fs::read_link(link).ok()?;
-    Some(target.to_string_lossy().to_string())
-}
-
-#[cfg(target_os = "linux")]
-fn linux_process_name(pid: u32) -> Option<String> {
-    let path = std::path::PathBuf::from(format!("/proc/{pid}/comm"));
-    let s = std::fs::read_to_string(path).ok()?;
-    let name = s.trim().to_string();
-    if name.is_empty() { None } else { Some(name) }
-}
-
-#[cfg(target_os = "linux")]
-fn basename(path: &str) -> Option<String> {
-    path.rsplit('/')
-        .next()
-        .map(|s| s.to_string())
-        .filter(|s| !s.is_empty())
 }

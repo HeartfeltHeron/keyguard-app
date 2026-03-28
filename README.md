@@ -29,12 +29,12 @@ _Can be used with any Bitwarden® installation. This product is not associated w
 - a watchtower that finds items with **Pwned passwords**, **Vulnerable accounts**, **Reused passwords**, **Inactive two factor authentication**, **Inactive passkeys**, **Unsecure Websites** as well as **Duplicate**, **Incomplete** and **Expiring** items, and other;
 - **multi-account support** 🌠 with secure login and two-factor authentication support;
 - add items 🌠 and sends _(Bitwarden, 🌠)_, modify 🌠, and view your vault **offline**;
-- unlock vault with a password, biometrics or YubiKey;
+- unlock vault with a password, biometrics or a YubiKey;
 - **export individual** or organization items, **including the attachments**; 
 - beautiful **Light**/**Dark theme**;
 - a generator with **SSH keys**, **Email forwarders**, **Custom wordlists** support, and many other features; 
 - a support for [shortcuts](wiki/SHORTCUTS.md), [placeholders](wiki/PLACEHOLDERS.md) and [URL overrides](wiki/URL_OVERRIDE.md);
-- a support for an SSH agent - interacting with SSH-based services;
+- a support for an SSH agent - interacting with SSH-based services on Android and Desktop platform;
 - a [smart conflict resolution](wiki/CONFLICTS.md);
 - and much more!
 

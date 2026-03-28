@@ -407,6 +407,7 @@ import com.artemchep.keyguard.copy.SimilarityServiceJvm
 import com.artemchep.keyguard.copy.ZipServiceJvm
 import com.artemchep.keyguard.common.service.database.DatabaseDispatcher
 import com.artemchep.keyguard.common.service.gpmprivapps.PrivilegedAppListEntity
+import com.artemchep.keyguard.common.service.sshagent.impl.SshAgentStatusServiceStatelessProxy
 import com.artemchep.keyguard.common.service.urlblock.impl.UrlBlockRepositoryExposed
 import com.artemchep.keyguard.common.usecase.BlockedUrlCheck
 import com.artemchep.keyguard.common.usecase.GetAllowScreenshotsVariants
@@ -802,9 +803,6 @@ fun globalModuleJvm() = DI.Module(
     }
     bindSingleton<PutSshAgentFilter> {
         PutSshAgentFilterImpl(this)
-    }
-    bindSingleton<SshAgentStatusService> {
-        SshAgentStatusServiceImpl()
     }
     bindSingleton<GetSshAgent> {
         GetSshAgentImpl(this)

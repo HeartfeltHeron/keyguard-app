@@ -1,4 +1,5 @@
 //! IPC module for communicating with the Keyguard desktop application.
 
 pub mod client;
-pub mod messages;
+
+pub use common_ssh_agent_rust::messages;

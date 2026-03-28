@@ -162,6 +162,16 @@
             android:exported="false"
             android:noHistory="true"
             android:taskAffinity=":autofill_fake_auth" />
+        <activity
+            android:name="com.artemchep.keyguard.android.sshagent.SshRequestActivity"
+            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|uiMode"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:noHistory="true"
+            android:taskAffinity=":termux_ssh"
+            android:theme="@style/Theme.Keyguard.Dialog"
+            android:windowSoftInputMode="adjustResize" />
 
         <receiver
             android:name="com.artemchep.keyguard.android.downloader.receiver.AttachmentDownloadActionReceiver"
@@ -187,6 +197,18 @@
             </intent-filter>
         </receiver>
 
+        <receiver
+            android:name="com.artemchep.keyguard.android.sshagent.SshAgentReceiver"
+            android:exported="true" />
+
+        <receiver
+            android:name="com.artemchep.keyguard.android.sshagent.SshRequestNotificationActionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="${applicationId}.ACTION_SSH_REQUEST_NOTIFICATION_DISMISS" />
+            </intent-filter>
+        </receiver>
+
         <service
             android:name="com.artemchep.keyguard.android.clipboard.KeyguardClipboardService"
             android:exported="false"
@@ -194,6 +216,15 @@
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Show/update one-time password notifications" />
+        </service>
+
+        <service
+            android:name="com.artemchep.keyguard.android.sshagent.SshAgentService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Bridge SSH agent requests over a localhost socket" />
         </service>
 
         <service

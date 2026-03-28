@@ -1,6 +1,5 @@
 package com.artemchep.keyguard.feature.home.settings.component
 
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material.icons.Icons
 import androidx.compose.material3.Text
@@ -30,7 +29,9 @@ fun settingSshAgentSetupProvider(
 fun settingSshAgentSetupProvider(): SettingComponent = kotlin.run {
     val item = SettingIi(
         platformClasses = listOf(
-            Platform.Desktop::class,
+            Platform.Mobile.Android::class,
+            Platform.Desktop.Linux::class,
+            Platform.Desktop.MacOS::class,
         ),
         search = SettingIi.Search(
             group = "security",

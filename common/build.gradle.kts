@@ -1,11 +1,10 @@
 import com.codingfeline.buildkonfig.compiler.FieldSpec.Type.INT
 import com.codingfeline.buildkonfig.compiler.FieldSpec.Type.STRING
+import com.artemchep.keyguard.buildplugins.resources.ResourcesCommonExtension
+import com.artemchep.keyguard.buildplugins.version.createVersionInfo
 import org.gradle.api.tasks.testing.Test
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.gradle.api.tasks.testing.logging.TestLogEvent
-import tasks.GenerateResHashesTask
-import tasks.GenerateResLocaleConfigKtTask
-import tasks.GenerateResLocaleConfigResTask
 import java.time.Duration
 
 plugins {
@@ -19,6 +18,7 @@ plugins {
     alias(libs.plugins.sqldelight)
     alias(libs.plugins.compose)
     alias(libs.plugins.kotlin.plugin.compose)
+    id("keyguard.resources-common")
 }
 
 //
@@ -30,40 +30,15 @@ val versionInfo = createVersionInfo(
     logicalVersion = libs.versions.appVersionCode.get().toInt(),
 )
 
-// We want to know when the public data files
-// change. For example we might need to re-compute
-// watchtower alerts in that case.
-val generateResHashesKtTask = tasks.register<GenerateResHashesTask>("generateKeyguardResHashesKt") {
-    val prefix = layout.projectDirectory.dir("src/commonMain/composeResources/files")
-    inputFiles.from(
-        prefix.file("justdeleteme.json"),
-        prefix.file("justgetmydata.json"),
-        prefix.file("passkeys.json"),
-        prefix.file("public_suffix_list.txt"),
-        prefix.file("tfa.json")
-    )
-    outputDir.set(layout.buildDirectory.dir("generated/keyguardResHashesKt/kotlin/"))
-}
-
-val generateResLocaleConfigKtTask = tasks.register<GenerateResLocaleConfigKtTask>(
-    name = "generateResLocaleConfigKt",
-) {
-    val res = layout.projectDirectory.dir("src/commonMain/composeResources")
-    composeResourcesDir.set(res)
-    outputDir.set(layout.buildDirectory.dir("generated/keyguardResLocaleConfigKt/kotlin/"))
-}
-
-val generateResLocaleConfigResTask = tasks.register<GenerateResLocaleConfigResTask>(
-    name = "generateResLocaleConfigRes",
-) {
-    val res = layout.projectDirectory.dir("src/commonMain/composeResources")
-    composeResourcesDir.set(res)
-    outputDir.set(layout.buildDirectory.dir("generated/keyguardResLocaleConfigRes/res/"))
-}
-
-tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile::class.java).all {
-    dependsOn(generateResHashesKtTask)
-    dependsOn(generateResLocaleConfigKtTask)
+keyguardResources {
+    composeResourcesDir.set(ResourcesCommonExtension.defaultComposeResourcesDir(project))
+    composeFilesDir.set(ResourcesCommonExtension.defaultComposeFilesDir(project))
+    generatedPackageName.set(ResourcesCommonExtension.DEFAULT_PACKAGE_NAME)
+    defaultLocale.set(ResourcesCommonExtension.DEFAULT_LOCALE)
+    hashEntries.putAll(ResourcesCommonExtension.defaultHashEntries())
+    hashKotlinOutputDir.set(ResourcesCommonExtension.defaultHashKotlinOutputDir(project))
+    localeKotlinOutputDir.set(ResourcesCommonExtension.defaultLocaleKotlinOutputDir(project))
+    localeResOutputDir.set(ResourcesCommonExtension.defaultLocaleResOutputDir(project))
 }
 
 tasks.withType<Test>().configureEach {
@@ -71,7 +46,7 @@ tasks.withType<Test>().configureEach {
 }
 
 kotlin {
-    androidLibrary {
+    android {
         compileSdk = libs.versions.androidCompileSdk.get().toInt()
         minSdk = libs.versions.androidMinSdk.get().toInt()
         namespace = "com.artemchep.keyguard.common"
@@ -94,10 +69,6 @@ kotlin {
             languageSettings.optIn("androidx.compose.foundation.ExperimentalFoundationApi")
             languageSettings.optIn("androidx.compose.foundation.layout.ExperimentalLayoutApi")
             languageSettings.optIn("androidx.compose.material3.ExperimentalMaterial3Api")
-        }
-        commonMain {
-            kotlin.srcDir(generateResHashesKtTask)
-            kotlin.srcDir(generateResLocaleConfigKtTask)
         }
     }
 
@@ -273,14 +244,6 @@ compose.resources {
     generateResClass = always
 }
 
-androidComponents {
-    onVariants { variant ->
-        variant.sources.res?.addGeneratedSourceDirectory(
-            generateResLocaleConfigResTask,
-        ) { task -> task.outputDir }
-    }
-}
-
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }
@@ -376,7 +339,7 @@ buildkonfig {
         buildConfigField(STRING, "buildType", BuildType.DEV.name)
         buildConfigField(STRING, "buildDate", versionInfo.buildDate)
         buildConfigField(STRING, "buildRef", versionInfo.buildRef)
-        buildConfigField(STRING, "versionName", versionInfo.marketingVersion.toString())
+        buildConfigField(STRING, "versionName", versionInfo.marketingVersion)
         buildConfigField(INT, "versionCode", versionInfo.logicalVersion.toString())
     }
     defaultConfigs("release") {

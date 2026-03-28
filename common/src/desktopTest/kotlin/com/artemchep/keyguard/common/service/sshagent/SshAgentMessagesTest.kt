@@ -138,6 +138,35 @@ class SshAgentMessagesTest {
         assertEquals("Terminal", decoded.signData?.caller?.appName)
     }
 
+    @Test
+    fun `SignDataRequest with Android app caller identity round-trips correctly`() {
+        val caller = SshAgentMessages.CallerIdentity(
+            pid = 123,
+            uid = 456,
+            gid = 789,
+            processName = "ssh",
+            executablePath = "/data/data/com.termux/files/usr/bin/ssh",
+            appName = "Termux",
+            appBundlePath = "com.termux",
+        )
+        val original = SshAgentMessages.IpcRequest(
+            id = 9L,
+            signData = SshAgentMessages.SignDataRequest(
+                publicKey = "ssh-ed25519 AAAA... test",
+                data = byteArrayOf(9, 8, 7),
+                flags = 0,
+                caller = caller,
+            ),
+        )
+
+        val bytes = protoBuf.encodeToByteArray(original)
+        val decoded = protoBuf.decodeFromByteArray<SshAgentMessages.IpcRequest>(bytes)
+
+        assertEquals(9L, decoded.id)
+        assertEquals("Termux", decoded.signData?.caller?.appName)
+        assertEquals("com.termux", decoded.signData?.caller?.appBundlePath)
+    }
+
     // ================================================================
     // IpcResponse round-trips
     // ================================================================

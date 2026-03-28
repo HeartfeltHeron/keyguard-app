@@ -18,6 +18,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.core.content.FileProvider
@@ -119,9 +120,9 @@ abstract class BaseActivity : AppCompatActivity(), DIAware {
 
         setContent {
             KeyguardTheme {
-                val containerColor = LocalBackgroundManager.current.colorHighest
+                val containerColor = activityContainerColor()
                 val containerColorAnimatedState = animateColorAsState(containerColor)
-                val contentColor = contentColorFor(containerColor)
+                val contentColor = activityContentColor(containerColorAnimatedState.value)
                 Surface(
                     modifier = Modifier.semantics {
                         // Allows to use testTag() for UiAutomator's resource-id.
@@ -133,7 +134,7 @@ abstract class BaseActivity : AppCompatActivity(), DIAware {
                     contentColor = contentColor,
                 ) {
                     CompositionLocalProvider(
-                        LocalSurfaceColor provides containerColor,
+                        LocalSurfaceColor provides containerColorAnimatedState.value,
                     ) {
                         Navigation {
                             Content()
@@ -143,6 +144,15 @@ abstract class BaseActivity : AppCompatActivity(), DIAware {
             }
         }
     }
+
+    @Composable
+    protected open fun activityContainerColor(
+    ): Color = LocalBackgroundManager.current.colorHighest
+
+    @Composable
+    protected open fun activityContentColor(
+        containerColor: Color,
+    ): Color = contentColorFor(containerColor)
 
     @Composable
     private fun Navigation(

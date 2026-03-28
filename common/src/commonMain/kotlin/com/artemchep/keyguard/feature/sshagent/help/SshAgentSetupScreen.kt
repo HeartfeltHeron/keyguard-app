@@ -1,17 +1,24 @@
 package com.artemchep.keyguard.feature.sshagent.help
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -23,16 +30,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.artemchep.keyguard.common.service.clipboard.ClipboardService
-import com.artemchep.keyguard.common.usecase.CopyText
 import com.artemchep.keyguard.feature.home.vault.component.FlatItemLayoutExpressive
 import com.artemchep.keyguard.feature.home.vault.component.LargeSection
 import com.artemchep.keyguard.feature.home.vault.component.Section
 import com.artemchep.keyguard.feature.localization.TextHolder
+import com.artemchep.keyguard.feature.navigation.LocalNavigationController
 import com.artemchep.keyguard.feature.navigation.NavigationIcon
+import com.artemchep.keyguard.feature.navigation.NavigationIntent
 import com.artemchep.keyguard.platform.CurrentPlatform
 import com.artemchep.keyguard.platform.Platform
 import com.artemchep.keyguard.res.Res
@@ -40,6 +47,7 @@ import com.artemchep.keyguard.res.*
 import com.artemchep.keyguard.ui.DisabledEmphasisAlpha
 import com.artemchep.keyguard.ui.MediumEmphasisAlpha
 import com.artemchep.keyguard.ui.ScaffoldColumn
+import com.artemchep.keyguard.ui.Selection
 import com.artemchep.keyguard.ui.tabs.SegmentedButtonGroup
 import com.artemchep.keyguard.ui.tabs.TabItem
 import com.artemchep.keyguard.ui.theme.Dimens
@@ -67,6 +75,33 @@ private const val SSH_AGENT_SETUP_VERIFY_CMD_LIST =
     "ssh-add -L"
 private const val SSH_AGENT_SETUP_VERIFY_CMD_CONNECT =
     "ssh -T git@github.com"
+
+private const val TERMUX_URL =
+    "https://github.com/termux/termux-app?tab=readme-ov-file#installation"
+
+/** Adds Keyguard termux repo as one of the sources */
+private const val SSH_AGENT_TERMUX_PKG_ADD_REPO = $$"""mkdir -p "$PREFIX/etc/apt/keyrings"
+mkdir -p "$PREFIX/etc/apt/sources.list.d"
+
+KG_KEY_PATH="$PREFIX/etc/apt/keyrings/keyguard-repo.gpg"
+
+curl -fsSL https://gh.artemchep.com/keyguard-repo-termux/keyguard-repo.gpg \
+  -o $KG_KEY_PATH
+
+echo "deb [signed-by=$KG_KEY_PATH] https://gh.artemchep.com/keyguard-repo-termux/ stable main" \
+  > $PREFIX/etc/apt/sources.list.d/keyguard.list
+
+pkg update"""
+
+private const val SSH_AGENT_TERMUX_PKG_INSTALL = """pkg install keyguard-android-ssh-agent"""
+
+private const val SSH_AGENT_TERMUX_PKG_SETUP_CURRENT =
+    $$"""eval "$("$PREFIX/bin/keyguard-android-ssh-agent" -a "$PREFIX/tmp/keyguard-ssh-agent.sock")""""
+
+private const val SSH_AGENT_TERMUX_PKG_SETUP_STARTUP =
+    $$"""if [ -x "$PREFIX/bin/keyguard-android-ssh-agent" ]; then
+  eval "$("$PREFIX/bin/keyguard-android-ssh-agent" -a "$PREFIX/tmp/keyguard-ssh-agent.sock")"
+fi"""
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -111,6 +146,9 @@ private fun ColumnScope.SshAgentSetupScreenContent() {
         )
 
         is Platform.Desktop.Windows -> SshAgentSetupUnsupportedPlatformContent()
+
+        is Platform.Mobile.Android -> SshAgentSetupAndroidPlatformContent()
+
         else -> Unit
     }
 }
@@ -245,6 +283,117 @@ private fun ColumnScope.SshAgentSetupSupportedPlatformContent(
 }
 
 @Composable
+private fun ColumnScope.SshAgentSetupAndroidPlatformContent() {
+    val navigationController by rememberUpdatedState(LocalNavigationController.current)
+    LargeSection(
+        text = stringResource(Res.string.ssh_agent_setup_android_termux_title),
+    )
+    Paragraph(
+        text = stringResource(Res.string.ssh_agent_setup_android_termux_text),
+    )
+    Section(
+        text = stringResource(Res.string.ssh_agent_setup_android_termux_step_1_title),
+    )
+    Paragraph(
+        text = stringResource(Res.string.ssh_agent_setup_android_termux_step_1_text),
+    )
+    TextButton(
+        modifier = Modifier
+            .padding(horizontal = Dimens.buttonHorizontalPadding),
+        onClick = {
+            val intent = NavigationIntent.NavigateToBrowser(
+                url = TERMUX_URL,
+            )
+            navigationController.queue(intent)
+        },
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.Terminal,
+            contentDescription = null,
+        )
+        Spacer(
+            modifier = Modifier
+                .width(Dimens.buttonIconPadding),
+        )
+        Text(
+            text = stringResource(Res.string.learn_more),
+        )
+    }
+    Section(
+        text = stringResource(Res.string.ssh_agent_setup_android_termux_step_2_title),
+    )
+    Paragraph(
+        text = stringResource(Res.string.ssh_agent_setup_android_termux_step_2_text),
+    )
+    Spacer(
+        modifier = Modifier
+            .height(4.dp),
+    )
+    CopyableCodeBlock(
+        text = SSH_AGENT_TERMUX_PKG_ADD_REPO,
+    )
+    CopyableCodeBlock(
+        text = SSH_AGENT_TERMUX_PKG_INSTALL,
+    )
+    Section(
+        text = stringResource(Res.string.ssh_agent_setup_android_termux_step_3_title),
+    )
+    Paragraph(
+        text = stringResource(Res.string.ssh_agent_setup_android_termux_step_3_shell_current),
+    )
+    Spacer(
+        modifier = Modifier
+            .height(4.dp),
+    )
+    CopyableCodeBlock(
+        text = SSH_AGENT_TERMUX_PKG_SETUP_CURRENT,
+    )
+    Spacer(
+        modifier = Modifier
+            .height(8.dp),
+    )
+    Paragraph(
+        text = stringResource(Res.string.ssh_agent_setup_android_termux_step_3_shell_startup),
+    )
+    Spacer(
+        modifier = Modifier
+            .height(4.dp),
+    )
+    CopyableCodeBlock(
+        text = SSH_AGENT_TERMUX_PKG_SETUP_STARTUP,
+    )
+    Section(
+        text = stringResource(Res.string.ssh_agent_setup_android_termux_step_4_title),
+    )
+    Paragraph(
+        text = stringResource(Res.string.ssh_agent_setup_android_termux_step_4_text),
+    )
+    Spacer(
+        modifier = Modifier
+            .height(4.dp),
+    )
+    CopyableCodeBlock(
+        text = SSH_AGENT_SETUP_VERIFY_CMD_LIST,
+    )
+    CopyableCodeBlock(
+        text = SSH_AGENT_SETUP_VERIFY_CMD_CONNECT,
+    )
+    LargeSection(
+        text = stringResource(Res.string.ssh_agent_setup_android_how_does_it_work_title),
+    )
+    Paragraph(
+        text = stringResource(Res.string.ssh_agent_setup_android_how_does_it_work_1),
+    )
+    Spacer(
+        modifier = Modifier
+            .height(8.dp),
+    )
+    Paragraph(
+        text = stringResource(Res.string.ssh_agent_setup_android_how_does_it_work_2),
+    )
+}
+
+@Composable
 private fun ColumnScope.SshAgentSetupUnsupportedPlatformContent() {
     Section(
         text = stringResource(Res.string.ssh_agent_setup_windows_title),
@@ -287,6 +436,17 @@ private fun CopyableCodeBlock(
     text: String,
     file: String? = null,
 ) {
+    val codeModifier = if (CurrentPlatform is Platform.Mobile) {
+        // On mobile the gesture of swiping to reveal more is trivial
+        // and intuitive, on desktop however that is most likely
+        // blocked.
+        Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+    } else {
+        Modifier
+    }
+
     val clipboardService by rememberInstance<ClipboardService>()
     val copyDescription = stringResource(Res.string.copy)
     FlatItemLayoutExpressive(
@@ -304,10 +464,14 @@ private fun CopyableCodeBlock(
                         .height(8.dp),
                 )
             }
-            Text(
-                text = text,
-                fontFamily = FontFamily.Monospace,
-            )
+            SelectionContainer {
+                Text(
+                    modifier = Modifier
+                        .then(codeModifier),
+                    text = text,
+                    fontFamily = FontFamily.Monospace,
+                )
+            }
         },
         trailing = {
             IconButton(

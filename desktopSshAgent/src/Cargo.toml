@@ -9,6 +9,7 @@ name = "keyguard-ssh-agent"
 path = "src/main.rs"
 
 [dependencies]
+common-ssh-agent-rust = { path = "../../commonSshAgent" }
 # SSH agent protocol
 ssh-agent-lib = "0.5"
 ssh-key = { version = "0.6", features = ["ed25519", "rsa", "crypto"] }
@@ -43,9 +44,6 @@ dirs = "6"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
-
-[build-dependencies]
-prost-build = "0.13"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["test-util", "io-util", "macros", "rt"] }

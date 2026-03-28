@@ -1,4 +1,5 @@
 pluginManagement {
+    includeBuild("buildPlugins")
     repositories {
         gradlePluginPortal()
         google()
@@ -24,9 +25,9 @@ dependencyResolutionManagement {
 rootProject.name = "keyguard"
 
 include ':common'
-// apps
 include ':androidApp'
 include ':androidBenchmark'
+include ':androidSshAgent'
 include ':androidTest'
 include ':desktopApp'
 include ':desktopLibJvm'

@@ -80,8 +80,14 @@ fun produceSshAgentFiltersState(
     val initialPending = FilterHolder(
         state = initialSavedFilter.state,
     )
-    val pendingSink = mutablePersistedFlow(
+    val pendingSink = mutablePersistedFlow<FilterHolder, String>(
         key = "pending_filter",
+        serialize = { json, value ->
+            json.encodeToString(value)
+        },
+        deserialize = { json, value ->
+            json.decodeFromString(value)
+        },
     ) { initialPending }
 
     val emptyPending = FilterHolder(

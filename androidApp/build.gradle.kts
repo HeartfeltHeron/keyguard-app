@@ -1,5 +1,5 @@
 import com.android.build.api.dsl.BuildType
-import org.gradle.kotlin.dsl.support.kotlinCompilerOptions
+import com.artemchep.keyguard.buildplugins.version.createVersionInfo
 import java.io.File
 import java.util.*
 
@@ -14,6 +14,7 @@ plugins {
     alias(libs.plugins.google.services)
     alias(libs.plugins.crashlytics)
     alias(libs.plugins.baseline.profile)
+    id("keyguard.resources-common") apply false
 }
 
 fun loadProps(fileName: String): Properties {
@@ -100,7 +101,7 @@ android {
         }
 
         debug {
-            applicationIdSuffix = ".debug"
+            //applicationIdSuffix = ".debug"
         }
         release {
             signingConfig = signingConfigs.getByName("release")

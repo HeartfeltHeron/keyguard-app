@@ -1,21 +1,33 @@
 package com.artemchep.keyguard.common.service.sshagent
 
+import com.artemchep.keyguard.common.model.DSecret
+import com.artemchep.keyguard.common.model.MasterKdfVersion
+import com.artemchep.keyguard.common.model.MasterKey
 import com.artemchep.keyguard.common.model.MasterSession
 import com.artemchep.keyguard.common.model.SshAgentFilter
 import com.artemchep.keyguard.common.service.logging.LogLevel
 import com.artemchep.keyguard.common.service.logging.LogRepository
+import com.artemchep.keyguard.common.usecase.GetCiphers
 import com.artemchep.keyguard.common.usecase.GetSshAgentFilter
 import com.artemchep.keyguard.common.usecase.GetVaultSession
+import java.io.ByteArrayOutputStream
+import java.io.DataOutputStream
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
+import java.util.Base64
+import kotlin.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import org.kodein.di.DI
+import org.kodein.di.bindSingleton
 
 /**
  * Tests for request processing logic in [SshAgentIpcServer].
@@ -27,14 +39,23 @@ import kotlin.test.assertTrue
  */
 class SshAgentRequestProcessingTest {
     private val authToken = ByteArray(32) { it.toByte() }
+    private val loggedMessages = mutableListOf<String>()
 
     private val logRepository = object : LogRepository {
+        override fun post(
+            tag: String,
+            message: String,
+            level: LogLevel,
+        ) {
+            loggedMessages += message
+        }
+
         override suspend fun add(
             tag: String,
             message: String,
             level: LogLevel,
         ) {
-            // Do nothing
+            loggedMessages += message
         }
     }
 
@@ -219,15 +240,47 @@ class SshAgentRequestProcessingTest {
         assertEquals(1, getListPromptCount)
     }
 
+    @Test
+    fun `handleListKeys returns keys without unlock prompt when vault is already unlocked`() = runTest {
+        var getListPromptCount = 0
+        val server = createServer(
+            vaultSession = MutableVaultSession(
+                createUnlockedSession(
+                    createSshSecret(
+                        name = "Primary key",
+                        publicKey = "ssh-ed25519 AAAA... primary@example",
+                        fingerprint = "SHA256:primary",
+                    ),
+                ),
+            ),
+            onGetListRequest = {
+                getListPromptCount++
+                true
+            },
+        )
+
+        val response = server.handleListKeys(
+            requestId = 21L,
+            req = SshAgentMessages.ListKeysRequest(),
+        )
+
+        val payload = requireNotNull(response.listKeys)
+        assertEquals(21L, response.id)
+        assertNull(response.error)
+        assertEquals(1, payload.keys.size)
+        assertEquals("Primary key", payload.keys.single().name)
+        assertEquals(0, getListPromptCount)
+    }
+
     // ================================================================
     // handleSignData with locked vault
     // ================================================================
 
     @Test
-    fun `handleSignData returns vault locked when vault is locked`() = runTest {
+    fun `handleSignData returns vault locked when locked vault unlock is unavailable`() = runTest {
         val server = createServer()
         val req = SshAgentMessages.SignDataRequest(
-            publicKey = "ssh-ed25519 AAAA...",
+            publicKey = buildOpenSshPublicKey("ssh-ed25519"),
             data = byteArrayOf(1, 2, 3),
             flags = 0,
         )
@@ -241,16 +294,21 @@ class SshAgentRequestProcessingTest {
     }
 
     @Test
-    fun `handleSignData returns user denied when locked vault sign approval is denied`() = runTest {
+    fun `handleSignData returns user denied when locked vault approval is denied`() = runTest {
         var approvalPromptCount = 0
+        var unlockPromptCount = 0
         val server = createServer(
             onApprovalRequest = { _, _, _ ->
                 approvalPromptCount++
                 false
             },
+            onGetListRequest = {
+                unlockPromptCount++
+                false
+            },
         )
         val req = SshAgentMessages.SignDataRequest(
-            publicKey = "ssh-ed25519 AAAA...",
+            publicKey = buildOpenSshPublicKey("ssh-ed25519"),
             data = byteArrayOf(1, 2, 3),
             flags = 0,
         )
@@ -262,11 +320,13 @@ class SshAgentRequestProcessingTest {
         assertEquals(SshAgentMessages.ErrorCode.USER_DENIED, response.error!!.code)
         assertNull(response.signData)
         assertEquals(1, approvalPromptCount)
+        assertEquals(0, unlockPromptCount)
     }
 
     @Test
-    fun `handleSignData returns vault locked when approval is allowed but vault stays locked`() = runTest {
+    fun `handleSignData returns vault locked when approval succeeds but vault stays locked`() = runTest {
         var approvalPromptCount = 0
+        var unlockPromptCount = 0
         val server = createServer(
             onApprovalRequest = { _, _, _ ->
                 approvalPromptCount++
@@ -285,6 +345,88 @@ class SshAgentRequestProcessingTest {
         assertNotNull(response.error)
         assertEquals(SshAgentMessages.ErrorCode.VAULT_LOCKED, response.error!!.code)
         assertNull(response.signData)
+        assertEquals(1, approvalPromptCount)
+        assertEquals(0, unlockPromptCount)
+    }
+
+    @Test
+    fun `handleSignData still requires approval when vault is unlocked`() = runTest {
+        var approvalPromptCount = 0
+        var unlockPromptCount = 0
+        val publicKeyBlob = buildOpenSshPublicKeyBlob("ssh-ed25519")
+        val publicKey = "ssh-ed25519 ${Base64.getEncoder().encodeToString(publicKeyBlob)}"
+        val unlockedSession = MutableVaultSession(
+            createUnlockedSession(
+                createSshSecret(
+                    name = "Signer",
+                    publicKey = "$publicKey signer@example",
+                    fingerprint = "SHA256:signer",
+                    privateKey = "private-key-placeholder",
+                ),
+            ),
+        )
+        val server = createServer(
+            vaultSession = unlockedSession,
+            onApprovalRequest = { _, _, _ ->
+                approvalPromptCount++
+                false
+            },
+        )
+        val req = SshAgentMessages.SignDataRequest(
+            publicKey = publicKey,
+            data = byteArrayOf(1, 2, 3),
+            flags = 0,
+        )
+
+        val response = server.handleSignData(requestId = 33L, req = req)
+
+        assertEquals(33L, response.id)
+        assertNotNull(response.error)
+        assertEquals(SshAgentMessages.ErrorCode.USER_DENIED, response.error!!.code)
+        assertNull(response.signData)
+        assertEquals(0, unlockPromptCount)
+        assertEquals(1, approvalPromptCount)
+        assertTrue("User denied the signing request" in loggedMessages)
+        assertTrue(loggedMessages.none { it.contains("Signer") })
+    }
+
+    @Test
+    fun `handleSignData does not ask twice after approval unlocks the vault`() = runTest {
+        var approvalPromptCount = 0
+        val publicKeyBlob = buildOpenSshPublicKeyBlob("ssh-ed25519")
+        val publicKey = "ssh-ed25519 ${Base64.getEncoder().encodeToString(publicKeyBlob)}"
+        val unlockedSession = createUnlockedSession(
+            createSshSecret(
+                name = "Signer",
+                publicKey = "$publicKey signer@example",
+                fingerprint = "SHA256:signer",
+                privateKey = "private-key-placeholder",
+            ),
+        )
+        val vaultSession = MutableVaultSession()
+        val server = createServer(
+            vaultSession = vaultSession,
+            onApprovalRequest = { _, _, _ ->
+                approvalPromptCount++
+                if (approvalPromptCount == 1) {
+                    vaultSession.valueOrNull = unlockedSession
+                    true
+                } else {
+                    false
+                }
+            },
+        )
+        val req = SshAgentMessages.SignDataRequest(
+            publicKey = publicKey,
+            data = byteArrayOf(1, 2, 3),
+            flags = 0,
+        )
+
+        val response = server.handleSignData(requestId = 34L, req = req)
+
+        assertEquals(34L, response.id)
+        assertNotNull(response.error)
+        assertEquals(SshAgentMessages.ErrorCode.UNSPECIFIED, response.error!!.code)
         assertEquals(1, approvalPromptCount)
     }
 
@@ -326,5 +468,89 @@ class SshAgentRequestProcessingTest {
             authenticated = true,
         )
         assertEquals(300L, signResp.id)
+    }
+
+    private class MutableVaultSession(
+        initialValue: MasterSession? = null,
+    ) : GetVaultSession {
+        private val state = MutableStateFlow(initialValue)
+
+        override var valueOrNull: MasterSession? = initialValue
+            set(value) {
+                field = value
+                state.value = value
+            }
+
+        override fun invoke(): Flow<MasterSession> = state.filterNotNull()
+    }
+
+    private fun createUnlockedSession(
+        vararg secrets: DSecret,
+    ): MasterSession.Key = MasterSession.Key(
+        masterKey = MasterKey(
+            version = MasterKdfVersion.LATEST,
+            byteArray = byteArrayOf(1, 2, 3),
+        ),
+        di = DI {
+            bindSingleton<GetCiphers> {
+                object : GetCiphers {
+                    override fun invoke(): Flow<List<DSecret>> = flowOf(secrets.toList())
+                }
+            }
+        },
+        origin = MasterSession.Key.Authenticated,
+        createdAt = Instant.parse("2024-01-01T00:00:00Z"),
+    )
+
+    private fun createSshSecret(
+        name: String,
+        publicKey: String,
+        fingerprint: String,
+        privateKey: String = "private-key-placeholder",
+    ): DSecret = DSecret(
+        id = name.lowercase().replace(' ', '-'),
+        accountId = "account",
+        folderId = null,
+        organizationId = null,
+        collectionIds = emptySet(),
+        revisionDate = Instant.parse("2024-01-01T00:00:00Z"),
+        createdDate = Instant.parse("2024-01-01T00:00:00Z"),
+        archivedDate = null,
+        deletedDate = null,
+        service = com.artemchep.keyguard.core.store.bitwarden.BitwardenService(),
+        name = name,
+        notes = "",
+        favorite = false,
+        reprompt = false,
+        synced = true,
+        type = DSecret.Type.SshKey,
+        sshKey = DSecret.SshKey(
+            privateKey = privateKey,
+            publicKey = publicKey,
+            fingerprint = fingerprint,
+        ),
+    )
+
+    private fun buildOpenSshPublicKey(
+        keyType: String,
+    ): String {
+        val blob = buildOpenSshPublicKeyBlob(keyType)
+        return "$keyType ${Base64.getEncoder().encodeToString(blob)}"
+    }
+
+    private fun buildOpenSshPublicKeyBlob(
+        keyType: String,
+    ): ByteArray = ByteArrayOutputStream().use { output ->
+        DataOutputStream(output).use { dataOutput ->
+            val keyTypeBytes = keyType.toByteArray(Charsets.US_ASCII)
+            dataOutput.writeInt(keyTypeBytes.size)
+            dataOutput.write(keyTypeBytes)
+
+            val keyBytes = ByteArray(32) { (it + 1).toByte() }
+            dataOutput.writeInt(keyBytes.size)
+            dataOutput.write(keyBytes)
+            dataOutput.flush()
+        }
+        output.toByteArray()
     }
 }

@@ -34,6 +34,32 @@ kotlin {
 
 val appId = "com.artemchep.keyguard"
 
+val bundledAppResources by configurations.creating {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+}
+
+dependencies {
+    add(
+        bundledAppResources.name,
+        project(
+            mapOf(
+                "path" to ":desktopSshAgent",
+                "configuration" to "bundledAppResourcesElements",
+            ),
+        ),
+    )
+    add(
+        bundledAppResources.name,
+        project(
+            mapOf(
+                "path" to ":desktopLibNative",
+                "configuration" to "bundledAppResourcesElements",
+            ),
+        ),
+    )
+}
+
 val macExtraPlistKeys: String
     get() = """
       <key>CFBundleLocalizations</key>
@@ -75,12 +101,7 @@ val macExtraPlistKeys: String
 val bundledAppResourcesDir = layout.buildDirectory.dir("app-resources")
 
 val prepareBundledAppResources = tasks.register<Sync>("prepareBundledAppResources") {
-    dependsOn(
-        ":desktopSshAgent:${Tasks.compileSshAgentUniversal}",
-        ":desktopLibNative:${Tasks.compileNativeUniversal}",
-    )
-    from(rootProject.layout.projectDirectory.dir("desktopSshAgent/build/bin"))
-    from(rootProject.layout.projectDirectory.dir("desktopLibNative/build/bin"))
+    from(bundledAppResources)
     into(bundledAppResourcesDir)
 }
 

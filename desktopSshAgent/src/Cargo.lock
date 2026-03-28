@@ -186,6 +186,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b05b61dc5112cbb17e4b6cd61790d9845d13888356391624cbe7e41efeac1e75"
 
 [[package]]
+name = "common-ssh-agent-rust"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "prost",
+ "prost-build",
+ "tokio",
+]
+
+[[package]]
 name = "const-oid"
 version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -627,12 +637,12 @@ dependencies = [
  "async-trait",
  "bytes",
  "clap",
+ "common-ssh-agent-rust",
  "dirs",
  "futures",
  "hex",
  "libc",
  "prost",
- "prost-build",
  "ssh-agent-lib",
  "ssh-encoding",
  "ssh-key",
