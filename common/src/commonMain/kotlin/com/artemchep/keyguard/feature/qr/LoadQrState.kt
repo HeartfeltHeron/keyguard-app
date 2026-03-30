@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.emptyFlow
 
 @Immutable
-data class ScanQrState(
+data class LoadQrState(
     val contentFlow: StateFlow<Content>,
     val onSuccessFlow: Flow<String>,
     val filePickerIntentFlow: Flow<FilePickerIntent<*>> = emptyFlow(),

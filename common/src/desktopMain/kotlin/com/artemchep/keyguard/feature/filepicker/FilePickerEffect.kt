@@ -36,24 +36,7 @@ actual fun FilePickerEffect(
                 }
             }
             is FilePickerIntent.OpenDocument -> {
-                val mimeTypes = intent.mimeTypes
-
-                val extensions = mimeTypes
-                    .mapNotNull { mimeType ->
-                        when (mimeType) {
-                            "text/plain" -> "txt"
-                            "text/wordlist" -> "wordlist"
-                            FilePickerMime.KEEPASS_KDBX,
-                            FilePickerMime.KEEPASS_GENERIC,
-                                -> "kdbx"
-
-                            "image/png" -> "png"
-                            "image/jpg" -> "jpg"
-                            else -> null
-                        }
-                    }
-                    .toSet()
-                    .takeIf { it.isNotEmpty() }
+                val extensions = mimeTypesToExtensions(intent.mimeTypes.asIterable())
                 val type = FileKitType.File(extensions = extensions)
                 showFilePicker(
                     type = type,
@@ -68,4 +51,26 @@ actual fun FilePickerEffect(
             }
         }
     }
+}
+
+internal fun mimeTypesToExtensions(mimeTypes: Iterable<String>): Set<String>? {
+    return mimeTypes
+        .flatMap { mimeType ->
+            when (mimeType) {
+                "text/plain" -> listOf("txt")
+                "text/wordlist" -> listOf("wordlist")
+                FilePickerMime.KEEPASS_KDBX,
+                FilePickerMime.KEEPASS_GENERIC,
+                    -> listOf("kdbx")
+
+                "image/png" -> listOf("png")
+                "image/jpeg",
+                "image/jpg",
+                    -> listOf("jpg", "jpeg")
+
+                else -> emptyList()
+            }
+        }
+        .toSet()
+        .takeIf { it.isNotEmpty() }
 }
