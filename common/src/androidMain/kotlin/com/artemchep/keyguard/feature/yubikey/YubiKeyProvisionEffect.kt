@@ -13,7 +13,6 @@ import arrow.core.left
 import arrow.core.right
 import com.artemchep.keyguard.common.exception.YubiKeyAuthCanceledException
 import com.artemchep.keyguard.common.exception.YubiKeyProvisionConfirmationRequiredException
-import com.artemchep.keyguard.common.exception.YubiKeyProvisionTransportUnsupportedException
 import com.artemchep.keyguard.common.exception.YubiKeyProvisionWriteException
 import com.artemchep.keyguard.common.exception.YubiKeySlotAccessCodeUnsupportedException
 import com.artemchep.keyguard.common.exception.YubiKeyUnsupportedException
@@ -84,7 +83,6 @@ private class YubiKeyProvisionProbeContract :
             context,
             KeyguardYubiKeyInspectSlotAction::class.java,
         )
-        .putExtra(YubiKeyPromptActivity.ARG_ALLOW_NFC, false)
         .putExtra(EXTRA_SLOT, input.slot)
 
     override fun parseResult(
@@ -100,10 +98,6 @@ private class YubiKeyProvisionProbeContract :
                     slot = slot,
                     isConfigured = intent?.getBooleanExtra(EXTRA_IS_CONFIGURED, true) ?: true,
                 ).right()
-            }
-
-            errorType == ERROR_USB_ONLY -> {
-                YubiKeyProvisionTransportUnsupportedException(errorMessage).left()
             }
 
             errorType == ERROR_UNSUPPORTED -> {
@@ -131,7 +125,6 @@ private class YubiKeyProvisionContract :
             context,
             KeyguardYubiKeyProvisionSlotAction::class.java,
         )
-        .putExtra(YubiKeyPromptActivity.ARG_ALLOW_NFC, false)
         .putExtra(EXTRA_SLOT, input.slot)
         .putExtra(EXTRA_CHALLENGE, input.challenge)
         .putExtra(EXTRA_SECRET, input.secret)
@@ -157,10 +150,6 @@ private class YubiKeyProvisionContract :
 
             errorType == ERROR_PROTECTED_SLOT -> {
                 YubiKeySlotAccessCodeUnsupportedException(slot, errorMessage).left()
-            }
-
-            errorType == ERROR_USB_ONLY -> {
-                YubiKeyProvisionTransportUnsupportedException(errorMessage).left()
             }
 
             errorType == ERROR_UNSUPPORTED -> {
@@ -232,5 +221,4 @@ internal const val EXTRA_OVERWRITE = "overwrite"
 internal const val EXTRA_IS_CONFIGURED = "is_configured"
 
 internal const val ERROR_PROTECTED_SLOT = "protected_slot"
-internal const val ERROR_USB_ONLY = "usb_only"
 internal const val ERROR_OVERWRITE_CONFIRMATION_REQUIRED = "overwrite_confirmation_required"

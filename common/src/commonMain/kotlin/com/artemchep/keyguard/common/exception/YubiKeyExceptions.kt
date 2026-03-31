@@ -22,15 +22,6 @@ class YubiKeyUnsupportedException(
     )
 }
 
-class YubiKeyProvisionTransportUnsupportedException(
-    message: String? = null,
-) : RuntimeException(message ?: "YubiKey provisioning requires a USB connection."), Readable {
-    override val title = TextHolder.Value("YubiKey provisioning requires USB")
-    override val text = TextHolder.Value(
-        "Connect the YubiKey over USB to inspect or provision a slot.",
-    )
-}
-
 class YubiKeySlotAccessCodeUnsupportedException(
     slot: Int,
     message: String? = null,
