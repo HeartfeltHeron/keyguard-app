@@ -62,11 +62,22 @@ import kotlinx.coroutines.flow.stateIn
 import org.kodein.di.compose.localDI
 import org.kodein.di.direct
 import org.kodein.di.instance
+import org.kodein.di.instanceOrNull
 
 @Composable
 fun produceGeneratorHistoryState() = with(localDI().direct) {
+    val getGeneratorHistory = instanceOrNull<GetGeneratorHistory>()
+    if (getGeneratorHistory == null) {
+        val stubState = GeneratorHistoryState(
+            selection = null,
+            options = persistentListOf(),
+            items = persistentListOf(),
+        )
+        return@with Loadable.Ok(stubState)
+    }
+
     produceGeneratorHistoryState(
-        getGeneratorHistory = instance(),
+        getGeneratorHistory = getGeneratorHistory,
         removeGeneratorHistory = instance(),
         removeGeneratorHistoryById = instance(),
         keyPairExport = instance(),

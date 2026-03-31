@@ -42,7 +42,8 @@
     <string name="notification_termux_ssh_content_sign_app">Open Keyguard to continue SSH signing for %1$s</string>
 
     <string name="about">About</string>
-    <string name="home_generator_label">Generator</string>
+    <string name="tab_generator_label">Generator (tab)</string>
+    <string name="standalone_generator_label">Generator (standalone)</string>
     <string name="autofill_service_name">Keyguard form autofilling</string>
     <string name="autofill_sign_in_prompt">Unlock Keyguard</string>
     <string name="autofill_explanation_summary">Enable autofilling to quickly fill out forms in other apps</string>

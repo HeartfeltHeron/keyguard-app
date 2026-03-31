@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 @Stable
 data class GeneratorState(
-    val onOpenHistory: () -> Unit,
+    val onOpenHistory: (() -> Unit)?,
     val options: ImmutableList<ContextItem>,
     val suggestionsState: StateFlow<ImmutableList<Suggestion>>,
     val loadedState: StateFlow<Loading>,

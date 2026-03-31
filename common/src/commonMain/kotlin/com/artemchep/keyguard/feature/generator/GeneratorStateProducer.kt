@@ -392,7 +392,9 @@ fun produceGeneratorState(
 
     val storage = kotlin.run {
         val disk = loadDiskHandle(
-            key = key?.let { "$it:" }.orEmpty() + "generator",
+            key = key?.let { "$it:" }.orEmpty()
+                    + args.storageKey?.let { "$it:" }.orEmpty()
+                    + "generator",
             global = true,
         )
         PersistedStorage.InDisk(disk)
@@ -1738,14 +1740,18 @@ fun produceGeneratorState(
         )
     }.stateIn(screenScope)
     val optionsStatic = buildContextItems {
-        this += EmailRelayListRoute.actionOrNull(
-            translator = this@produceScreenState,
-            navigate = ::navigate,
-        )
-        this += WordlistsRoute.actionOrNull(
-            translator = this@produceScreenState,
-            navigate = ::navigate,
-        )
+        if (getEmailRelays != null) {
+            this += EmailRelayListRoute.actionOrNull(
+                translator = this@produceScreenState,
+                navigate = ::navigate,
+            )
+        }
+        if (getWordlists != null) {
+            this += WordlistsRoute.actionOrNull(
+                translator = this@produceScreenState,
+                navigate = ::navigate,
+            )
+        }
     }
     val optionsFlow = tipVisibleSink
         .map { tipVisible ->
@@ -2049,7 +2055,8 @@ fun produceGeneratorState(
     optionsFlow
         .map { options ->
             val state = GeneratorState(
-                onOpenHistory = ::onOpenHistory,
+                onOpenHistory = ::onOpenHistory
+                    .takeIf { addGeneratorHistory != null },
                 options = options,
                 suggestionsState = suggestionsFlow,
                 loadedState = loadingFlow,

@@ -1,4 +1,4 @@
-package com.artemchep.keyguard.feature.generator
+ package com.artemchep.keyguard.feature.generator
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
@@ -189,16 +189,19 @@ fun GeneratorScreen(
                         },
                         ifOk = { state ->
                             val updatedOnOpenHistory by rememberUpdatedState(state.onOpenHistory)
-                            IconButton(
-                                onClick = {
-                                    updatedOnOpenHistory()
-                                },
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.History,
-                                    contentDescription = null,
-                                )
+                            if (updatedOnOpenHistory != null) {
+                                IconButton(
+                                    onClick = {
+                                        updatedOnOpenHistory?.invoke()
+                                    },
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.History,
+                                        contentDescription = null,
+                                    )
+                                }
                             }
+
                             val actions = state.options
                             OptionsButton(actions)
                         },
@@ -325,16 +328,19 @@ private fun GeneratorPaneMaster(
                         },
                         ifOk = { state ->
                             val updatedOnOpenHistory by rememberUpdatedState(state.onOpenHistory)
-                            IconButton(
-                                onClick = {
-                                    updatedOnOpenHistory()
-                                },
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.History,
-                                    contentDescription = null,
-                                )
+                            if (updatedOnOpenHistory != null) {
+                                IconButton(
+                                    onClick = {
+                                        updatedOnOpenHistory?.invoke()
+                                    },
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.History,
+                                        contentDescription = null,
+                                    )
+                                }
                             }
+
                             val actions = state.options
                             OptionsButton(actions)
                         },
